@@ -8,7 +8,7 @@ if defined _OLD_CODEPAGE (
     "%SystemRoot%\System32\chcp.com" 65001 > nul
 )
 
-set VIRTUAL_ENV=E:\Users\10833\Documents\OneDrive - MSFT\mygithub\my_YoutubeDownloader\.venv
+set VIRTUAL_ENV=e:\Users\10833\Documents\githubRps\my_YoutubeDownloader\.venv
 
 if not defined PROMPT set PROMPT=$P$G
 

@@ -15,8 +15,8 @@ class YouTubeDownloader:
     def __init__(self, root):
         self.root = root
         self.root.title("YouTube Downloader")
-        self.root.minsize(width=400, height=200)  # 设置最小尺寸
-        self.root.maxsize(width=800, height=200)  # 设置最大尺寸
+        self.root.minsize(width=400, height=300)  # 设置最小尺寸
+        self.root.maxsize(width=800, height=300)  # 设置最大尺寸
 
         # 定义较大的字体
         large_font = tkFont.Font(family="Helvetica", size=12, weight="bold")
@@ -28,16 +28,25 @@ class YouTubeDownloader:
         self.entry_url = ttk.Entry(root)
         self.entry_url.pack(fill='x', expand=True, padx=20)
 
+
         # 创建一个框架来容纳按钮
         self.button_frame = ttk.Frame(root)
         self.button_frame.pack(pady=10)  # 在按钮框架周围添加垂直间距
+
+        # 新增视频清晰度选择下拉菜单
+        self.quality_label = ttk.Label(self.button_frame, text="选择视频清晰度:")
+        self.quality_label.pack(side=tk.LEFT, padx=10)
+        self.quality_combobox = ttk.Combobox(self.button_frame, state="readonly")
+        self.quality_combobox.pack(side=tk.LEFT, padx=10)
+        self.button_load = ttk.Button(self.button_frame, text="加载视频信息", command=self.load_video)
+        self.button_load.pack(side=tk.LEFT, padx=10)
 
         # 在框架内添加按钮
         self.button_browse = ttk.Button(self.button_frame, text="选择下载路径", command=self.browse_path)
         self.button_browse.pack(side=tk.LEFT, padx=10)  # 在按钮之间添加水平间距
 
         self.button_download = ttk.Button(self.button_frame, text="下载视频", command=self.start_download_thread)
-        self.button_download.pack(side=tk.LEFT)  # 按钮放置在右侧
+        self.button_download.pack(side=tk.LEFT, padx=10)  # 按钮放置在右侧
 
         # 设置进度百分比显示的字体大小
         self.progress_label = ttk.Label(root, text="0%", font=large_font)
@@ -80,19 +89,38 @@ class YouTubeDownloader:
         self.root.update_idletasks()
 
 
+    # 加载视频信息的方法
+    def load_video(self):
+        url = self.entry_url.get()
+        yt = YouTube(url)
+        streams = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution')
+        qualities = [stream.resolution for stream in streams]
+        self.quality_combobox['values'] = qualities
+
+
+    # 此函数未测试 TODO
+    def start_load_thread(self): 
+        """ 在新线程中开始下载视频，并重置进度条 """
+        self.disable_buttons()  # 禁用按钮
+        self.parsing_dialog = self.show_parsing_dialog()  # 显示解析提示
+        threading.Thread(target=self.load_video).start()
+
+
     def download_video(self):
-        """ 视频下载方法，包括进度回调和下载完成的处理 """
+        """ 根据用户选择的清晰度下载视频 """
         url = self.entry_url.get()
         path = self.download_path
+        selected_quality = self.quality_combobox.get()
         try:
             yt = YouTube(url, on_progress_callback=self.show_progress)
-            # video = yt.streams.first()
-            video = yt.streams.filter(file_extension='mp4').get_by_itag(22) #22表示720p,137为1080p
-            video.download(path)
+            stream = yt.streams.filter(res=selected_quality, file_extension='mp4').first()
+            if stream:
+                stream.download(path)
+            else:
+                messagebox.showerror("错误", "未找到选定的视频清晰度")
         except Exception as e:
             messagebox.showerror("错误", f"下载过程中出错：{e}")
         finally:
-            # 使用事件来通知主线程关闭解析提示窗口
             self.root.event_generate("<<CloseParsingDialog>>", when="tail")
 
 
@@ -126,11 +154,14 @@ class YouTubeDownloader:
         """ 禁用按钮 """
         self.button_download.config(state='disabled')
         self.button_browse.config(state='disabled')
+        self.button_load.config(state="disabled")
+
 
     def enable_buttons(self):
         """ 启用按钮 """
         self.button_download.config(state='normal')
         self.button_browse.config(state='normal')
+        self.button_load.config(state='normal')
 
 
 

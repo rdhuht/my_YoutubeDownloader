@@ -104,6 +104,7 @@ class YouTubeDownloader:
         self.disable_buttons()  # 禁用按钮
         self.parsing_dialog = self.show_parsing_dialog()  # 显示解析提示
         threading.Thread(target=self.load_video).start()
+        self.enable_buttons()
 
 
     def download_video(self):

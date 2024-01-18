@@ -28,6 +28,9 @@ class YouTubeDownloader:
         self.entry_url = ttk.Entry(root)
         self.entry_url.pack(fill='x', expand=True, padx=20)
 
+        # 新增一个标签用于显示视频标题
+        self.video_title_label = ttk.Label(root, text="", font=large_font)
+        self.video_title_label.pack(pady=(5, 0))
 
         # 创建一个框架来容纳按钮
         self.button_frame = ttk.Frame(root)
@@ -51,7 +54,7 @@ class YouTubeDownloader:
         # 设置进度百分比显示的字体大小
         self.progress_label = ttk.Label(root, text="0%", font=large_font)
         self.progress_label.pack()
-        
+
         # 进度条
         self.progress = ttk.Progressbar(root, bootstyle="success-striped", orient='horizontal', mode='determinate')
         self.progress.pack(fill='x', expand=True, padx=20, pady=10)
@@ -89,13 +92,18 @@ class YouTubeDownloader:
         self.root.update_idletasks()
 
 
-    # 加载视频信息的方法
     def load_video(self):
+        """ 加载视频信息并显示视频标题 """
         url = self.entry_url.get()
-        yt = YouTube(url)
-        streams = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution')
-        qualities = [stream.resolution for stream in streams]
-        self.quality_combobox['values'] = qualities
+        try:
+            yt = YouTube(url)
+            self.video_title_label['text'] = yt.title  # 显示视频标题
+
+            streams = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution')
+            qualities = [stream.resolution for stream in streams]
+            self.quality_combobox['values'] = qualities
+        except Exception as e:
+            messagebox.showerror("错误", f"加载视频时出错：{e}")
 
 
     # 此函数未测试 TODO
@@ -107,8 +115,9 @@ class YouTubeDownloader:
         self.enable_buttons()
 
 
+
     def download_video(self):
-        """ 根据用户选择的清晰度下载视频 """
+        """ 根据用户选择的清晰度下载视频，并下载字幕（如果可用） """
         url = self.entry_url.get()
         path = self.download_path
         selected_quality = self.quality_combobox.get()
@@ -117,12 +126,22 @@ class YouTubeDownloader:
             stream = yt.streams.filter(res=selected_quality, file_extension='mp4').first()
             if stream:
                 stream.download(path)
+
+                # 检查并下载字幕
+                if yt.captions:
+                    caption = yt.captions.get_by_language_code('en')  # 假设字幕是英文的
+                    if caption:
+                        caption_file = caption.generate_srt_captions()
+                        with open(os.path.join(path, yt.title + ".srt"), "w") as file:
+                            file.write(caption_file)
+
             else:
                 messagebox.showerror("错误", "未找到选定的视频清晰度")
         except Exception as e:
             messagebox.showerror("错误", f"下载过程中出错：{e}")
         finally:
             self.root.event_generate("<<CloseParsingDialog>>", when="tail")
+
 
 
     def start_download_thread(self):

@@ -8,6 +8,7 @@ import threading
 import tkinter.simpledialog as sd
 import tkinter.messagebox as mb
 import tkinter.font as tkFont
+import subprocess
 
 
 
@@ -28,18 +29,22 @@ class YouTubeDownloader:
         self.entry_url = ttk.Entry(root)
         self.entry_url.pack(fill='x', expand=True, padx=20)
 
+        # 新增一个标签用于显示视频标题
+        self.video_title_label = ttk.Label(root, text="", font=large_font)
+        self.video_title_label.pack(pady=(5, 0))
 
         # 创建一个框架来容纳按钮
         self.button_frame = ttk.Frame(root)
         self.button_frame.pack(pady=10)  # 在按钮框架周围添加垂直间距
 
         # 新增视频清晰度选择下拉菜单
+        self.button_load = ttk.Button(self.button_frame, text="加载视频信息", command=self.load_video)
+        self.button_load.pack(side=tk.LEFT, padx=10)
         self.quality_label = ttk.Label(self.button_frame, text="选择视频清晰度:")
         self.quality_label.pack(side=tk.LEFT, padx=10)
         self.quality_combobox = ttk.Combobox(self.button_frame, state="readonly")
         self.quality_combobox.pack(side=tk.LEFT, padx=10)
-        self.button_load = ttk.Button(self.button_frame, text="加载视频信息", command=self.load_video)
-        self.button_load.pack(side=tk.LEFT, padx=10)
+
 
         # 在框架内添加按钮
         self.button_browse = ttk.Button(self.button_frame, text="选择下载路径", command=self.browse_path)
@@ -51,7 +56,7 @@ class YouTubeDownloader:
         # 设置进度百分比显示的字体大小
         self.progress_label = ttk.Label(root, text="0%", font=large_font)
         self.progress_label.pack()
-        
+
         # 进度条
         self.progress = ttk.Progressbar(root, bootstyle="success-striped", orient='horizontal', mode='determinate')
         self.progress.pack(fill='x', expand=True, padx=20, pady=10)
@@ -89,13 +94,18 @@ class YouTubeDownloader:
         self.root.update_idletasks()
 
 
-    # 加载视频信息的方法
     def load_video(self):
+        """ 加载视频信息并显示视频标题 """
         url = self.entry_url.get()
-        yt = YouTube(url)
-        streams = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution')
-        qualities = [stream.resolution for stream in streams]
-        self.quality_combobox['values'] = qualities
+        try:
+            yt = YouTube(url)
+            self.video_title_label['text'] = yt.title  # 显示视频标题
+
+            streams = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution')
+            qualities = [stream.resolution for stream in streams]
+            self.quality_combobox['values'] = qualities
+        except Exception as e:
+            messagebox.showerror("错误", f"加载视频时出错：{e}")
 
 
     # 此函数未测试 TODO
@@ -107,8 +117,9 @@ class YouTubeDownloader:
         self.enable_buttons()
 
 
+
     def download_video(self):
-        """ 根据用户选择的清晰度下载视频 """
+        """ 根据用户选择的清晰度下载视频，并下载字幕（如果可用） """
         url = self.entry_url.get()
         path = self.download_path
         selected_quality = self.quality_combobox.get()
@@ -117,12 +128,32 @@ class YouTubeDownloader:
             stream = yt.streams.filter(res=selected_quality, file_extension='mp4').first()
             if stream:
                 stream.download(path)
+
+                # 检查并下载字幕
+                if yt.captions:
+                    caption = yt.captions.get_by_language_code('en')  # 假设字幕是英文的
+                    if caption:
+                        caption_file = caption.generate_srt_captions()
+                        with open(os.path.join(path, yt.title + ".srt"), "w") as file:
+                            file.write(caption_file)
+
             else:
                 messagebox.showerror("错误", "未找到选定的视频清晰度")
         except Exception as e:
-            messagebox.showerror("错误", f"下载过程中出错：{e}")
+            messagebox.showerror("错误", f"下载过程中出错：{str(e)}")
         finally:
             self.root.event_generate("<<CloseParsingDialog>>", when="tail")
+            # 下载完成后打开下载文件夹
+            self.open_download_folder()
+            # 重置下载功能
+            self.progress['value'] = 0
+            self.progress_label['text'] = "0%"
+            self.enable_buttons()  # 重新启用按钮
+            self.root.event_generate("<<CloseParsingDialog>>", when="tail")
+            self.open_download_folder()
+            # 可选：清空视频标题和清晰度选择
+            self.video_title_label['text'] = ""
+            self.quality_combobox['values'] = []
 
 
     def start_download_thread(self):
@@ -164,6 +195,15 @@ class YouTubeDownloader:
         self.button_browse.config(state='normal')
         self.button_load.config(state='normal')
 
+
+    def open_download_folder(self):
+        """ 打开下载文件夹 """
+        if self.download_path:
+            # 根据操作系统的不同选择不同的命令
+            if os.name == 'nt':  # 对于Windows
+                subprocess.Popen(['explorer', self.download_path])
+            elif os.name == 'posix':  # 对于macOS, Linux
+                subprocess.Popen(['open', self.download_path])
 
 
 if __name__ == "__main__":

@@ -145,6 +145,16 @@ class YouTubeDownloader:
             self.root.event_generate("<<CloseParsingDialog>>", when="tail")
             # 下载完成后打开下载文件夹
             self.open_download_folder()
+            # 重置下载功能
+            self.progress['value'] = 0
+            self.progress_label['text'] = "0%"
+            self.enable_buttons()  # 重新启用按钮
+            self.root.event_generate("<<CloseParsingDialog>>", when="tail")
+            self.open_download_folder()
+            # 可选：清空视频标题和清晰度选择
+            self.video_title_label['text'] = ""
+            self.quality_combobox['values'] = []
+
 
     def start_download_thread(self):
         """ 在新线程中开始下载视频，并重置进度条 """

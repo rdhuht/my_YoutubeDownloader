@@ -8,6 +8,7 @@ import threading
 import tkinter.simpledialog as sd
 import tkinter.messagebox as mb
 import tkinter.font as tkFont
+import subprocess
 
 
 
@@ -37,12 +38,13 @@ class YouTubeDownloader:
         self.button_frame.pack(pady=10)  # 在按钮框架周围添加垂直间距
 
         # 新增视频清晰度选择下拉菜单
+        self.button_load = ttk.Button(self.button_frame, text="加载视频信息", command=self.load_video)
+        self.button_load.pack(side=tk.LEFT, padx=10)
         self.quality_label = ttk.Label(self.button_frame, text="选择视频清晰度:")
         self.quality_label.pack(side=tk.LEFT, padx=10)
         self.quality_combobox = ttk.Combobox(self.button_frame, state="readonly")
         self.quality_combobox.pack(side=tk.LEFT, padx=10)
-        self.button_load = ttk.Button(self.button_frame, text="加载视频信息", command=self.load_video)
-        self.button_load.pack(side=tk.LEFT, padx=10)
+
 
         # 在框架内添加按钮
         self.button_browse = ttk.Button(self.button_frame, text="选择下载路径", command=self.browse_path)
@@ -138,11 +140,11 @@ class YouTubeDownloader:
             else:
                 messagebox.showerror("错误", "未找到选定的视频清晰度")
         except Exception as e:
-            messagebox.showerror("错误", f"下载过程中出错：{e}")
+            messagebox.showerror("错误", f"下载过程中出错：{str(e)}")
         finally:
             self.root.event_generate("<<CloseParsingDialog>>", when="tail")
-
-
+            # 下载完成后打开下载文件夹
+            self.open_download_folder()
 
     def start_download_thread(self):
         """ 在新线程中开始下载视频，并重置进度条 """
@@ -183,6 +185,15 @@ class YouTubeDownloader:
         self.button_browse.config(state='normal')
         self.button_load.config(state='normal')
 
+
+    def open_download_folder(self):
+        """ 打开下载文件夹 """
+        if self.download_path:
+            # 根据操作系统的不同选择不同的命令
+            if os.name == 'nt':  # 对于Windows
+                subprocess.Popen(['explorer', self.download_path])
+            elif os.name == 'posix':  # 对于macOS, Linux
+                subprocess.Popen(['open', self.download_path])
 
 
 if __name__ == "__main__":

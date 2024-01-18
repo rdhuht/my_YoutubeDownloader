@@ -16,59 +16,56 @@ class YouTubeDownloader:
     def __init__(self, root):
         self.root = root
         self.root.title("YouTube Downloader")
-        self.root.minsize(width=400, height=300)  # 设置最小尺寸
-        self.root.maxsize(width=800, height=300)  # 设置最大尺寸
+        self.root.minsize(width=600, height=350)  # 减少窗口的最小高度以使布局更紧凑
 
-        # 定义较大的字体
-        large_font = tkFont.Font(family="Helvetica", size=12, weight="bold")
+        # 定义字体
+        large_font = tkFont.Font(family="Helvetica", size=26, weight="bold")
+        middle_font = tkFont.Font(family="Helvetica", size=20, weight="bold")
+        small_font = tkFont.Font(family="Helvetica", size=10)
 
-        # 设置标签的字体大小
+        # 视频链接输入框
         self.label_url = ttk.Label(root, text="YouTube视频链接:", font=large_font)
-        self.label_url.pack(pady=(10, 0))
-
+        self.label_url.pack(pady=(10))
         self.entry_url = ttk.Entry(root)
-        self.entry_url.pack(fill='x', expand=True, padx=20)
+        self.entry_url.pack(fill='x', expand=True, padx=20, pady=(2, 10))
 
-        # 新增一个标签用于显示视频标题
-        self.video_title_label = ttk.Label(root, text="", font=large_font)
-        self.video_title_label.pack(pady=(5, 0))
+        # 加载视频信息按钮
+        self.button_load = ttk.Button(root, text="加载视频信息", command=self.load_video, bootstyle='success')
+        self.button_load.pack(pady=(0, 5))
 
-        # 创建一个框架来容纳按钮
+        # 显示视频标题
+        self.video_title_label = ttk.Label(root, text="", font=small_font)
+        self.video_title_label.pack(pady=(5, 5))
+
+        # 视频清晰度和字幕选择框架
+        self.quality_frame = ttk.Frame(root)
+        self.quality_frame.pack(pady=(0, 5))
+        self.quality_label = ttk.Label(self.quality_frame, text="清晰度:", font=middle_font)
+        self.quality_label.pack(side=tk.LEFT, padx=(10, 2))
+        self.quality_combobox = ttk.Combobox(self.quality_frame, state="readonly", width=15)
+        self.quality_combobox.pack(side=tk.LEFT, padx=(2, 10))
+        self.caption_label = ttk.Label(self.quality_frame, text="字幕:", font=middle_font)
+        self.caption_label.pack(side=tk.LEFT, padx=(10, 2))
+        self.caption_combobox = ttk.Combobox(self.quality_frame, state="readonly", width=25)
+        self.caption_combobox.pack(side=tk.LEFT, padx=(2, 10))
+
+        # 下载路径选择和开始下载按钮
         self.button_frame = ttk.Frame(root)
-        self.button_frame.pack(pady=10)  # 在按钮框架周围添加垂直间距
+        self.button_frame.pack(pady=(0, 5))
+        self.button_browse = ttk.Button(self.button_frame, text="选择下载路径", command=self.browse_path, bootstyle='info')
+        self.button_browse.pack(side=tk.LEFT, padx=(10, 5))
+        self.button_download = ttk.Button(self.button_frame, text="下载视频", command=self.start_download_thread, bootstyle='danger')
+        self.button_download.pack(side=tk.LEFT, padx=(5, 10))
 
-        # 新增视频清晰度选择下拉菜单
-        self.button_load = ttk.Button(self.button_frame, text="1、加载视频信息", command=self.load_video)
-        self.button_load.pack(side=tk.LEFT, padx=10)
-        self.quality_label = ttk.Label(self.button_frame, text="2、视频清晰度:")
-        self.quality_label.pack(side=tk.LEFT, padx=10)
-        self.quality_combobox = ttk.Combobox(self.button_frame, state="readonly")
-        self.quality_combobox.pack(side=tk.LEFT, padx=10)
-        self.caption_label = ttk.Label(self.button_frame, text="3、字幕文件:")
-        self.caption_label.pack(side=tk.LEFT, padx=10)
-        self.caption_combobox = ttk.Combobox(self.button_frame, state="readonly")
-        self.caption_combobox.pack(side=tk.LEFT, padx=10)
-
-        # 在框架内添加按钮
-        self.button_browse = ttk.Button(root, text="4、选择下载路径", command=self.browse_path)
-        self.button_browse.pack(side=tk.LEFT, padx=10)  # 在按钮之间添加水平间距
-
-        self.button_download = ttk.Button(root, text="5、下载视频", command=self.start_download_thread)
-        self.button_download.pack(side=tk.LEFT, padx=10)  # 按钮放置在右侧
-
-        # 设置进度百分比显示的字体大小
-        self.progress_label = ttk.Label(root, text="0%", font=large_font)
-        self.progress_label.pack()
-
-        # 进度条
+        # 进度条和进度百分比
+        self.progress_label = ttk.Label(root, text="0%", font=middle_font)
+        self.progress_label.pack(pady=(5, 2))
         self.progress = ttk.Progressbar(root, bootstyle="success-striped", orient='horizontal', mode='determinate')
-        self.progress.pack(fill='x', expand=True, padx=20, pady=10)
+        self.progress.pack(fill='x', expand=True, padx=20, pady=(2, 10))
 
         self.download_path = ""  # 用于存储下载路径
 
         self.center_window(self.root)
-
-        # 绑定自定义事件到close_parsing_dialog方法
         self.root.bind("<<CloseParsingDialog>>", lambda e: self.close_parsing_dialog())
 
 
@@ -103,25 +100,17 @@ class YouTubeDownloader:
         try:
             yt = YouTube(url)
             self.video_title_label['text'] = yt.title  # 显示视频标题
+
+            # 更新清晰度选项
             streams = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution')
             qualities = [stream.resolution for stream in streams]
             self.quality_combobox['values'] = qualities
 
             # 获取并展示可用字幕列表
             captions = yt.captions
-            self.caption_combobox['values'] = [caption.name for caption in captions.all()]
+            self.caption_combobox['values'] = [caption for caption in captions]
         except Exception as e:
             messagebox.showerror("错误", f"加载视频时出错：{e}")
-
-
-    # 此函数未测试 TODO
-    def start_load_thread(self): 
-        """ 在新线程中开始下载视频，并重置进度条 """
-        self.disable_buttons()  # 禁用按钮
-        self.parsing_dialog = self.show_parsing_dialog()  # 显示解析提示
-        threading.Thread(target=self.load_video).start()
-        self.enable_buttons()
-
 
 
     def download_video(self):
@@ -147,6 +136,7 @@ class YouTubeDownloader:
 
             # 获取并下载选定的字幕
             selected_caption_name = self.caption_combobox.get()
+            print(selected_caption_name)
             caption = next((c for c in yt.captions if c.name == selected_caption_name), None)
             if caption:
                 caption_file = caption.generate_srt_captions()

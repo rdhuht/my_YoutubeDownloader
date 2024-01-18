@@ -38,19 +38,22 @@ class YouTubeDownloader:
         self.button_frame.pack(pady=10)  # 在按钮框架周围添加垂直间距
 
         # 新增视频清晰度选择下拉菜单
-        self.button_load = ttk.Button(self.button_frame, text="加载视频信息", command=self.load_video)
+        self.button_load = ttk.Button(self.button_frame, text="1、加载视频信息", command=self.load_video)
         self.button_load.pack(side=tk.LEFT, padx=10)
-        self.quality_label = ttk.Label(self.button_frame, text="选择视频清晰度:")
+        self.quality_label = ttk.Label(self.button_frame, text="2、视频清晰度:")
         self.quality_label.pack(side=tk.LEFT, padx=10)
         self.quality_combobox = ttk.Combobox(self.button_frame, state="readonly")
         self.quality_combobox.pack(side=tk.LEFT, padx=10)
-
+        self.caption_label = ttk.Label(self.button_frame, text="3、字幕文件:")
+        self.caption_label.pack(side=tk.LEFT, padx=10)
+        self.caption_combobox = ttk.Combobox(self.button_frame, state="readonly")
+        self.caption_combobox.pack(side=tk.LEFT, padx=10)
 
         # 在框架内添加按钮
-        self.button_browse = ttk.Button(self.button_frame, text="选择下载路径", command=self.browse_path)
+        self.button_browse = ttk.Button(root, text="4、选择下载路径", command=self.browse_path)
         self.button_browse.pack(side=tk.LEFT, padx=10)  # 在按钮之间添加水平间距
 
-        self.button_download = ttk.Button(self.button_frame, text="下载视频", command=self.start_download_thread)
+        self.button_download = ttk.Button(root, text="5、下载视频", command=self.start_download_thread)
         self.button_download.pack(side=tk.LEFT, padx=10)  # 按钮放置在右侧
 
         # 设置进度百分比显示的字体大小
@@ -100,10 +103,13 @@ class YouTubeDownloader:
         try:
             yt = YouTube(url)
             self.video_title_label['text'] = yt.title  # 显示视频标题
-
             streams = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution')
             qualities = [stream.resolution for stream in streams]
             self.quality_combobox['values'] = qualities
+
+            # 获取并展示可用字幕列表
+            captions = yt.captions
+            self.caption_combobox['values'] = [caption.name for caption in captions.all()]
         except Exception as e:
             messagebox.showerror("错误", f"加载视频时出错：{e}")
 
@@ -136,9 +142,17 @@ class YouTubeDownloader:
                         caption_file = caption.generate_srt_captions()
                         with open(os.path.join(path, yt.title + ".srt"), "w") as file:
                             file.write(caption_file)
-
             else:
                 messagebox.showerror("错误", "未找到选定的视频清晰度")
+
+            # 获取并下载选定的字幕
+            selected_caption_name = self.caption_combobox.get()
+            caption = next((c for c in yt.captions if c.name == selected_caption_name), None)
+            if caption:
+                caption_file = caption.generate_srt_captions()
+                with open(os.path.join(path, yt.title + " - " + selected_caption_name + ".srt"), "w", encoding='utf-8') as file:
+                    file.write(caption_file)
+                    
         except Exception as e:
             messagebox.showerror("错误", f"下载过程中出错：{str(e)}")
         finally:

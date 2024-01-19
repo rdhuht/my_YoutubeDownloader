@@ -1,35 +1,85 @@
-一个基于 Python 和 Tkinter 的图形界面应用程序，名为“YouTube Downloader”。它允许用户从YouTube下载视频。程序使用了几个外部库：`tkinter`（用于GUI界面），`ttkbootstrap`（提供美化的Tkinter组件），`pytube`（用于处理YouTube视频下载），以及 `threading`（用于在后台执行任务，防止GUI冻结）。
+# YouTube Downloader README
 
-以下是代码的主要特点和功能：
+## English Version
 
-1. **窗口设置与样式**：
+### Introduction
 
-   - 设置了应用程序窗口的标题、最小尺寸和最大尺寸。
-   - 使用 `ttkbootstrap`库应用了一个主题（'journal'），以提供更现代的外观。
-2. **用户界面组件**：
+YouTube Downloader is a simple, user-friendly Python application for downloading YouTube videos. This script offers functionalities like selecting video quality, downloading subtitles, and choosing the download directory.
 
-   - 输入框用于接收YouTube视频链接。
-   - 视频标题显示标签。
-   - 包含按钮的框架，用于加载视频信息、选择下载路径和开始下载。
-   - 下拉菜单用于选择视频清晰度。
-   - 进度条和标签显示下载进度。
-3. **视频处理功能**：
+### Features
 
-   - `load_video`方法从提供的YouTube链接中加载视频信息，并填充视频清晰度的下拉菜单。
-   - `download_video`方法处理视频下载，包括进度跟踪和字幕下载（如果可用）。
-4. **多线程**：
+- Download YouTube videos in various resolutions.
+- Option to download subtitles.
+- User-friendly GUI using tkinter and ttkbootstrap.
+- Progress bar for download status.
+- Easy directory selection for downloads.
 
-   - 使用 `threading.Thread`在后台处理视频加载和下载，防止GUI在长时间操作时无响应。
-5. **其他辅助功能**：
+### Installation
 
-   - `browse_path`方法允许用户选择视频的下载路径。
-   - `show_parsing_dialog`和 `close_parsing_dialog`用于在视频解析和下载期间显示和关闭提示窗口。
-   - `open_download_folder`方法在下载完成后打开包含下载视频的文件夹。
-6. **错误处理**：
+To use YouTube Downloader, you need to have Python installed on your computer along with the following Python libraries:
 
-   - 在加载和下载视频时，如果出现异常，会显示错误消息。
-7. **程序入口**：
+- `tkinter`
+- `ttkbootstrap`
+- `pytube`
 
-   - 代码在 `if __name__ == "__main__"`块中实例化应用程序并运行。
+Use pip to install the required packages:
 
-需要注意的是，这个程序依赖于外部库（如 `pytube`），因此在运行之前需要确保这些库已安装。另外，由于YouTube的API和内部机制可能会变化，因此 `pytube`库可能需要定期更新以保持功能正常。
+```bash
+pip install ttkbootstrap pytube
+```
+
+### Usage
+
+1. Run the script using Python.
+2. Enter the YouTube video URL in the provided field.
+3. Click on "Load Video Info" to fetch video details.
+4. Select the desired video quality and subtitles (if required).
+5. Choose the download path.
+6. Click on "Download Video" to start the download.
+
+### License
+
+This project is distributed under the MIT License. See the LICENSE file for more information.
+
+---
+
+## 中文版
+
+### 介绍
+
+YouTube Downloader 是一个简单易用的 Python 应用程序，用于下载 YouTube 视频。此脚本提供了选择视频质量、下载字幕和选择下载目录等功能。
+
+### 特点
+
+- 以不同分辨率下载 YouTube 视频。
+- 下载字幕的选项。
+- 使用 tkinter 和 ttkbootstrap 的用户友好界面。
+- 下载状态的进度条。
+- 方便选择下载目录。
+
+### 安装
+
+使用 YouTube Downloader，您需要在计算机上安装 Python 以及以下 Python 库：
+
+- `tkinter`
+- `ttkbootstrap`
+- `pytube`
+
+使用 pip 安装所需的包：
+
+```bash
+pip install ttkbootstrap pytube
+```
+
+### 使用方法
+
+1. 使用 Python 运行脚本。
+2. 在提供的字段中输入 YouTube 视频 URL。
+3. 点击“加载视频信息”以获取视频详细信息。
+4. 选择所需的视频质量和字幕（如果需要）。
+5. 选择下载路径。
+6. 点击“下载视频”开始下载。
+
+### 许可
+
+该项目在 MIT 许可下分发。有关更多信息，请查看 LICENSE 文件。

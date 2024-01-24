@@ -1,5 +1,11 @@
+altgraph==0.17.4
 beautifulsoup4==4.12.3
+bs4==0.0.2
+macholib==1.16.3
+packaging==23.2
 pillow==10.2.0
+pyinstaller-hooks-contrib==2024.0
 pytube==15.0.0
+setuptools==69.0.3
 soupsieve==2.5
 ttkbootstrap==1.10.1

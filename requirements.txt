@@ -1,2 +1,5 @@
+beautifulsoup4==4.12.3
+pillow==10.2.0
 pytube==15.0.0
+soupsieve==2.5
 ttkbootstrap==1.10.1

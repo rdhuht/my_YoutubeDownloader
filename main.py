@@ -9,7 +9,7 @@ import tkinter.simpledialog as sd
 import tkinter.messagebox as mb
 import tkinter.font as tkFont
 import subprocess
-
+from bs4 import BeautifulSoup
 
 
 class YouTubeDownloader:
@@ -95,7 +95,7 @@ class YouTubeDownloader:
 
 
     def load_video(self):
-        """ 加载视频信息并显示视频标题 """
+        """加载视频信息并显示视频标题及可用字幕列表"""
         url = self.entry_url.get()
         try:
             yt = YouTube(url)
@@ -108,43 +108,81 @@ class YouTubeDownloader:
 
             # 获取并展示可用字幕列表
             captions = yt.captions
-            self.caption_combobox['values'] = [caption for caption in captions]
+            # 创建一个映射字典，用于存储语言名称到代码的映射
+            self.caption_lang_map = {caption.name: caption.code for caption in captions.all()}
+            # 更新下拉菜单，显示语言名称
+            self.caption_combobox['values'] = list(self.caption_lang_map.keys())
         except Exception as e:
             messagebox.showerror("错误", f"加载视频时出错：{e}")
 
 
+
+
+    def xml2srt(self, text):
+        soup = BeautifulSoup(text, 'html.parser')  # 确保使用 'html.parser' 作为解析器
+        ps = soup.findAll('p')
+        output = ''
+        num = 0
+        for i, p in enumerate(ps):
+            try:
+                num += 1
+                text = p.text
+                start_time = int(p['t'])
+                duration = int(p['d'])
+                end_time = start_time + duration
+
+                # 转换时间格式
+                start_hours, start_remainder = divmod(start_time, 3600000)
+                start_minutes, start_seconds = divmod(start_remainder, 60000)
+                start_seconds, start_milliseconds = divmod(start_seconds, 1000)
+
+                end_hours, end_remainder = divmod(end_time, 3600000)
+                end_minutes, end_seconds = divmod(end_remainder, 60000)
+                end_seconds, end_milliseconds = divmod(end_seconds, 1000)
+
+                # 格式化时间字符串
+                start_time_str = f"{start_hours:02}:{start_minutes:02}:{start_seconds:02},{start_milliseconds:03}"
+                end_time_str = f"{end_hours:02}:{end_minutes:02}:{end_seconds:02},{end_milliseconds:03}"
+
+                output += f"{num}\n{start_time_str} --> {end_time_str}\n{text}\n\n"
+            except KeyError:
+                pass  # 忽略没有时间属性的标签
+        return output
+
+
     def download_video(self):
-        """ 根据用户选择的清晰度下载视频，并下载字幕（如果可用） """
+        """根据用户选择的清晰度下载视频，并下载字幕（如果可用）"""
         url = self.entry_url.get()
         path = self.download_path
         selected_quality = self.quality_combobox.get()
+
         try:
             yt = YouTube(url, on_progress_callback=self.show_progress)
             stream = yt.streams.filter(res=selected_quality, file_extension='mp4').first()
             if stream:
-                stream.download(path)
+                stream.download(output_path=path, filename=yt.title + ".mp4")
 
-                # 检查并下载字幕
-                if yt.captions:
-                    caption = yt.captions.get_by_language_code('en')  # 假设字幕是英文的
+                # 获取用户选择的字幕名称
+                selected_caption_name = self.caption_combobox.get()
+                if selected_caption_name:
+                    # 从映射中获取语言代码
+                    selected_caption_language_code = self.caption_lang_map[selected_caption_name]
+                    caption = yt.captions.get_by_language_code(selected_caption_language_code)
                     if caption:
-                        caption_file = caption.generate_srt_captions()
-                        with open(os.path.join(path, yt.title + ".srt"), "w") as file:
-                            file.write(caption_file)
+                        xml_captions = caption.xml_captions
+                        srt_captions = self.xml2srt(xml_captions)
+                        caption_filename = f"{yt.title} - {selected_caption_language_code}.srt"
+                        caption_path = os.path.join(path, caption_filename)
+                        with open(caption_path, "w", encoding='utf-8') as file:
+                            file.write(srt_captions)
+                        messagebox.showinfo("字幕下载", "字幕下载成功。")
+                    else:
+                        messagebox.showinfo("字幕下载", "所选字幕不可用。")
             else:
                 messagebox.showerror("错误", "未找到选定的视频清晰度")
-
-            # 获取并下载选定的字幕
-            selected_caption_name = self.caption_combobox.get()
-            print(selected_caption_name)
-            caption = next((c for c in yt.captions if c.name == selected_caption_name), None)
-            if caption:
-                caption_file = caption.generate_srt_captions()
-                with open(os.path.join(path, yt.title + " - " + selected_caption_name + ".srt"), "w", encoding='utf-8') as file:
-                    file.write(caption_file)
-                    
         except Exception as e:
             messagebox.showerror("错误", f"下载过程中出错：{str(e)}")
+
         finally:
             self.root.event_generate("<<CloseParsingDialog>>", when="tail")
             # 下载完成后打开下载文件夹

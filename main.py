@@ -30,7 +30,7 @@ class YouTubeDownloader:
         self.entry_url.pack(fill='x', expand=True, padx=20, pady=(2, 10))
 
         # 加载视频信息按钮
-        self.button_load = ttk.Button(root, text="加载视频信息", command=self.load_video, bootstyle='success')
+        self.button_load = ttk.Button(root, text="加载视频信息", command=self.start_parse_video_thread, bootstyle='success')
         self.button_load.pack(pady=(0, 5))
 
         # 显示视频标题
@@ -83,6 +83,8 @@ class YouTubeDownloader:
         self.download_path = filedialog.askdirectory()
         if self.download_path:
             messagebox.showinfo("路径选择", f"下载路径已选择：{self.download_path}")
+            print(self.download_path)
+
 
     def show_progress(self, stream, chunk, bytes_remaining):
         """ 更新下载进度 """
@@ -94,7 +96,7 @@ class YouTubeDownloader:
         self.root.update_idletasks()
 
 
-    def load_video(self):
+    def load_video_msg(self):
         """加载视频信息并显示视频标题及可用字幕列表"""
         url = self.entry_url.get()
         try:
@@ -105,21 +107,25 @@ class YouTubeDownloader:
             streams = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution')
             qualities = [stream.resolution for stream in streams]
             self.quality_combobox['values'] = qualities
-
+            print(qualities)
             # 获取并展示可用字幕列表
             captions = yt.captions
             # 创建一个映射字典，用于存储语言名称到代码的映射
-            self.caption_lang_map = {caption.name: caption.code for caption in captions.all()}
+            self.caption_lang_map = {caption.name: caption.code for caption in captions}
             # 更新下拉菜单，显示语言名称
             self.caption_combobox['values'] = list(self.caption_lang_map.keys())
         except Exception as e:
             messagebox.showerror("错误", f"加载视频时出错：{e}")
-
-
-
+        finally:
+            # 重置下载功能
+            self.progress['value'] = 0
+            self.progress_label['text'] = "0%"
+            self.enable_buttons()  # 重新启用按钮
+            self.root.event_generate("<<CloseParsingDialog>>", when="tail")
 
     def xml2srt(self, text):
-        soup = BeautifulSoup(text, 'html.parser')  # 确保使用 'html.parser' 作为解析器
+        # Ensure using 'lxml' as the parser for XML documents
+        soup = BeautifulSoup(text, 'lxml')  # Changed from 'html.parser' to 'lxml'
         ps = soup.findAll('p')
         output = ''
         num = 0
@@ -155,7 +161,7 @@ class YouTubeDownloader:
         url = self.entry_url.get()
         path = self.download_path
         selected_quality = self.quality_combobox.get()
-
+        print()
         try:
             yt = YouTube(url, on_progress_callback=self.show_progress)
             stream = yt.streams.filter(res=selected_quality, file_extension='mp4').first()
@@ -167,7 +173,9 @@ class YouTubeDownloader:
                 if selected_caption_name:
                     # 从映射中获取语言代码
                     selected_caption_language_code = self.caption_lang_map[selected_caption_name]
-                    caption = yt.captions.get_by_language_code(selected_caption_language_code)
+                    # caption = yt.captions.get_by_language_code(selected_caption_language_code)
+                    caption = yt.captions[selected_caption_language_code]
+
                     if caption:
                         xml_captions = caption.xml_captions
                         srt_captions = self.xml2srt(xml_captions)
@@ -175,16 +183,15 @@ class YouTubeDownloader:
                         caption_path = os.path.join(path, caption_filename)
                         with open(caption_path, "w", encoding='utf-8') as file:
                             file.write(srt_captions)
-                        messagebox.showinfo("字幕下载", "字幕下载成功。")
+                        messagebox.showinfo("下载", "下载成功。")
                     else:
-                        messagebox.showinfo("字幕下载", "所选字幕不可用。")
+                        messagebox.showinfo("下载", "所选字幕不可用。")
             else:
                 messagebox.showerror("错误", "未找到选定的视频清晰度")
         except Exception as e:
             messagebox.showerror("错误", f"下载过程中出错：{str(e)}")
 
         finally:
-            self.root.event_generate("<<CloseParsingDialog>>", when="tail")
             # 下载完成后打开下载文件夹
             self.open_download_folder()
             # 重置下载功能
@@ -192,31 +199,39 @@ class YouTubeDownloader:
             self.progress_label['text'] = "0%"
             self.enable_buttons()  # 重新启用按钮
             self.root.event_generate("<<CloseParsingDialog>>", when="tail")
-            self.open_download_folder()
             # 可选：清空视频标题和清晰度选择
             self.video_title_label['text'] = ""
             self.quality_combobox['values'] = []
+
+
+    def start_parse_video_thread(self):
+        """ 在新线程中开始分析视频信息，并重置进度条 """
+        self.progress['value'] = 0
+        self.disable_buttons()  # 禁用按钮
+        self.parsing_dialog = self.show_dialog()  # 加载视频信息
+        threading.Thread(target=self.load_video_msg).start()
 
 
     def start_download_thread(self):
         """ 在新线程中开始下载视频，并重置进度条 """
         self.progress['value'] = 0
         self.disable_buttons()  # 禁用按钮
-        self.parsing_dialog = self.show_parsing_dialog()  # 显示解析提示
+        self.parsing_dialog = self.show_dialog()  # 显示解析提示
         threading.Thread(target=self.download_video).start()
 
 
-    def show_parsing_dialog(self):
-        """ 显示一个持续的解析提示 """
+    def show_dialog(self):
+        """ 显示一个解析和下载时的提示 """
         dialog = tk.Toplevel(self.root)
         dialog.title("提示")
-        tk.Label(dialog, text="正在解析中，开始下载后可关闭此弹窗。").pack(pady=10)
+        tk.Label(dialog, text="正在处理中，请稍等……").pack(pady=10)
         dialog.transient(self.root)
         dialog.grab_set()
         dialog.update_idletasks()  # 更新窗口任务，以便获取尺寸信息
         self.center_window(dialog)  # 将窗口居中
         return dialog
-    
+
+
     def close_parsing_dialog(self):
         """ 关闭解析提示窗口 """
         if self.parsing_dialog:
@@ -241,11 +256,12 @@ class YouTubeDownloader:
     def open_download_folder(self):
         """ 打开下载文件夹 """
         if self.download_path:
-            # 根据操作系统的不同选择不同的命令
+            print(f"Attempting to open: {self.download_path}")  # 调试输出
             if os.name == 'nt':  # 对于Windows
-                subprocess.Popen(['explorer', self.download_path])
+                subprocess.Popen(['explorer', self.download_path.replace('/', '\\')])
             elif os.name == 'posix':  # 对于macOS, Linux
                 subprocess.Popen(['open', self.download_path])
+
 
 
 if __name__ == "__main__":

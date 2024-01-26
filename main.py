@@ -19,8 +19,8 @@ class YouTubeDownloader:
         self.root.minsize(width=600, height=350)  # 减少窗口的最小高度以使布局更紧凑
 
         # 定义字体
-        large_font = tkFont.Font(family="Helvetica", size=26, weight="bold")
-        middle_font = tkFont.Font(family="Helvetica", size=20, weight="bold")
+        large_font = tkFont.Font(family="Helvetica", size=26)
+        middle_font = tkFont.Font(family="Helvetica", size=20)
         small_font = tkFont.Font(family="Helvetica", size=10)
 
         # 视频链接输入框
@@ -83,7 +83,7 @@ class YouTubeDownloader:
         self.download_path = filedialog.askdirectory()
         if self.download_path:
             messagebox.showinfo("路径选择", f"下载路径已选择：{self.download_path}")
-            print(self.download_path)
+            # print(self.download_path)
 
 
     def show_progress(self, stream, chunk, bytes_remaining):
@@ -107,7 +107,7 @@ class YouTubeDownloader:
             streams = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution')
             qualities = [stream.resolution for stream in streams]
             self.quality_combobox['values'] = qualities
-            print(qualities)
+            # print(qualities)
             # 获取并展示可用字幕列表
             captions = yt.captions
             # 创建一个映射字典，用于存储语言名称到代码的映射
@@ -161,13 +161,14 @@ class YouTubeDownloader:
         url = self.entry_url.get()
         path = self.download_path
         selected_quality = self.quality_combobox.get()
-        print()
+        # print(selected_quality)
         try:
             yt = YouTube(url, on_progress_callback=self.show_progress)
             stream = yt.streams.filter(res=selected_quality, file_extension='mp4').first()
             if stream:
+                print(path)
                 stream.download(output_path=path, filename=yt.title + ".mp4")
-
+                print("--" + path)
                 # 获取用户选择的字幕名称
                 selected_caption_name = self.caption_combobox.get()
                 if selected_caption_name:
@@ -256,7 +257,7 @@ class YouTubeDownloader:
     def open_download_folder(self):
         """ 打开下载文件夹 """
         if self.download_path:
-            print(f"Attempting to open: {self.download_path}")  # 调试输出
+            # print(f"Attempting to open: {self.download_path}")  # 调试输出
             if os.name == 'nt':  # 对于Windows
                 subprocess.Popen(['explorer', self.download_path.replace('/', '\\')])
             elif os.name == 'posix':  # 对于macOS, Linux

@@ -34,7 +34,7 @@ class YouTubeDownloader:
         self.button_load.pack(pady=(0, 5))
 
         # 显示视频标题
-        self.video_title_label = ttk.Label(root, text="", font=small_font)
+        self.video_title_label = ttk.Label(root, text="")
         self.video_title_label.pack(pady=(5, 5))
 
         # 视频清晰度和字幕选择框架

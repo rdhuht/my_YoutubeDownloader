@@ -19,12 +19,12 @@ class YouTubeDownloader:
         self.root.minsize(width=600, height=350)  # 减少窗口的最小高度以使布局更紧凑
 
         # 定义字体
-        large_font = tkFont.Font(family="Helvetica", size=26)
-        middle_font = tkFont.Font(family="Helvetica", size=20)
-        small_font = tkFont.Font(family="Helvetica", size=10)
+        large_font = tkFont.Font(family="阿里巴巴普惠体 3.0 75 SemiBold", size=20)
+        middle_font = tkFont.Font(family="阿里巴巴普惠体 3.0 75 SemiBold", size=18)
+        small_font = tkFont.Font(family="阿里巴巴普惠体 3.0 75 SemiBold", size=16)
 
         # 视频链接输入框
-        self.label_url = ttk.Label(root, text="YouTube视频链接:", font=large_font)
+        self.label_url = ttk.Label(root, text="YouTube视频链接", font=small_font)
         self.label_url.pack(pady=(10))
         self.entry_url = ttk.Entry(root)
         self.entry_url.pack(fill='x', expand=True, padx=20, pady=(2, 10))
@@ -40,11 +40,11 @@ class YouTubeDownloader:
         # 视频清晰度和字幕选择框架
         self.quality_frame = ttk.Frame(root)
         self.quality_frame.pack(pady=(0, 5))
-        self.quality_label = ttk.Label(self.quality_frame, text="清晰度:", font=middle_font)
+        self.quality_label = ttk.Label(self.quality_frame, text="清晰度:", font=small_font)
         self.quality_label.pack(side=tk.LEFT, padx=(10, 2))
         self.quality_combobox = ttk.Combobox(self.quality_frame, state="readonly", width=15)
         self.quality_combobox.pack(side=tk.LEFT, padx=(2, 10))
-        self.caption_label = ttk.Label(self.quality_frame, text="字幕:", font=middle_font)
+        self.caption_label = ttk.Label(self.quality_frame, text="字幕:", font=small_font)
         self.caption_label.pack(side=tk.LEFT, padx=(10, 2))
         self.caption_combobox = ttk.Combobox(self.quality_frame, state="readonly", width=25)
         self.caption_combobox.pack(side=tk.LEFT, padx=(2, 10))
@@ -58,7 +58,7 @@ class YouTubeDownloader:
         self.button_download.pack(side=tk.LEFT, padx=(5, 10))
 
         # 进度条和进度百分比
-        self.progress_label = ttk.Label(root, text="0%", font=middle_font)
+        self.progress_label = ttk.Label(root, text="0%", font=small_font)
         self.progress_label.pack(pady=(5, 2))
         self.progress = ttk.Progressbar(root, bootstyle="success-striped", orient='horizontal', mode='determinate')
         self.progress.pack(fill='x', expand=True, padx=20, pady=(2, 10))

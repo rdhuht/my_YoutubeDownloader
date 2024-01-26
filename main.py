@@ -156,6 +156,14 @@ class YouTubeDownloader:
         return output
 
 
+
+    def clean_filename(self, filename):
+        # 替换不合法字符
+        invalid_chars = '<>:"/\\|?*'
+        for char in invalid_chars:
+            filename = filename.replace(char, '_')  # 使用下划线替代不合法字符
+        return filename
+    
     def download_video(self):
         """根据用户选择的清晰度下载视频，并下载字幕（如果可用）"""
         url = self.entry_url.get()
@@ -166,9 +174,9 @@ class YouTubeDownloader:
             yt = YouTube(url, on_progress_callback=self.show_progress)
             stream = yt.streams.filter(res=selected_quality, file_extension='mp4').first()
             if stream:
-                print(path)
-                stream.download(output_path=path, filename=yt.title + ".mp4")
-                print("--" + path)
+                # print(path)
+                stream.download(output_path=path, filename=self.clean_filename(yt.title) + ".mp4")
+                # print("--" + path)
                 # 获取用户选择的字幕名称
                 selected_caption_name = self.caption_combobox.get()
                 if selected_caption_name:
@@ -181,7 +189,9 @@ class YouTubeDownloader:
                         xml_captions = caption.xml_captions
                         srt_captions = self.xml2srt(xml_captions)
                         caption_filename = f"{yt.title} - {selected_caption_language_code}.srt"
-                        caption_path = os.path.join(path, caption_filename)
+                        # print(caption_filename)
+                        # print(self.clean_filename(caption_filename))
+                        caption_path = os.path.join(path, self.clean_filename(caption_filename))
                         with open(caption_path, "w", encoding='utf-8') as file:
                             file.write(srt_captions)
                         messagebox.showinfo("下载", "下载成功。")

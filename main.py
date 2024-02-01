@@ -152,6 +152,13 @@ class YouTubeDownloader:
         return filename
 
 
+    def extract_resolution_and_size(self, quality):
+        resolution, size = quality.split(' - ')
+        size = float(size.replace('MB', ''))
+        resolution = int(resolution.replace('p', ''))
+        return resolution, size
+    
+
     def start_parse_video_thread(self):
         """ 在新线程中开始分析视频信息，并重置进度条 """
         self.progress['value'] = 0
@@ -229,14 +236,12 @@ class YouTubeDownloader:
             qualities = []
             for stream in streams:
                 display_text = "{} - {:.2f}MB".format(stream.resolution, stream.filesize / (1024 * 1024))
-                print(stream.resolution)
                 self.streams_map[display_text] = stream.resolution  # 储存映射
                 qualities.append(display_text)
-            self.quality_combobox['values'] = qualities
-            qualities.sort(reverse=True)  # 确保最高清晰度在第一位
-            self.quality_combobox['values'] = qualities
+            qualities_sorted_correctly = sorted(qualities, key=self.extract_resolution_and_size, reverse=True)
+            self.quality_combobox['values'] = qualities_sorted_correctly
             if qualities:
-                self.quality_combobox.current(0)  # 自动选择最清晰的选项
+                self.quality_combobox.current(0)
 
             # 获取并展示可用字幕列表
             captions = yt.captions

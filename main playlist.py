@@ -235,7 +235,7 @@ class YouTubeDownloader:
             qualities.sort(reverse=True)  # 确保最高清晰度在第一位
             self.quality_combobox['values'] = qualities
             if qualities:
-                self.quality_combobox.current(0)  # 自动选择最清晰的选项
+                self.quality_combobox.current(0)
 
             # 获取并展示可用字幕列表
             captions = yt.captions

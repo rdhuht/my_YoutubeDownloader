@@ -87,18 +87,12 @@ class YouTubeDownloader:
 
 
     def browse_path(self):
-        """ 弹出一个对话框，让用户选择下载路径，如果未选择，则使用桌面作为默认路径 """
-        if not self.download_path:  # 如果之前没有选择过路径
-            if os.name == 'nt':  # Windows
-                self.download_path = os.path.join(os.environ['USERPROFILE'], 'Desktop')
-            elif os.name == 'posix':  # macOS
-                self.download_path = os.path.join(os.path.expanduser('~'), 'Desktop')
-        self.download_path = filedialog.askdirectory(initialdir=self.download_path)
-        if not self.download_path:  # 用户取消选择
-            # 回退到默认路径
-            self.download_path = os.path.join(os.environ['USERPROFILE'], 'Desktop') if os.name == 'nt' else os.path.join(os.path.expanduser('~'), 'Desktop')
+        """ Let the user choose a download path, default to the Desktop if not chosen """
+        initial_path = os.path.join(os.path.expanduser('~'), 'Desktop')
+        self.download_path = filedialog.askdirectory(initialdir=initial_path)
+        if not self.download_path:  # If the user cancels the selection
+            self.download_path = initial_path  # Default to Desktop
         messagebox.showinfo("路径选择", f"下载路径已选择：{self.download_path}")
-
 
 
     def show_progress(self, stream, chunk, bytes_remaining):
@@ -280,7 +274,6 @@ class YouTubeDownloader:
             self.root.event_generate("<<CloseParsingDialog>>", when="tail")
 
 
-
     def update_elapsed_time(self):
         if self.download_start_time and self.is_downloading:
             elapsed_time = time.time() - self.download_start_time
@@ -299,7 +292,9 @@ class YouTubeDownloader:
 
         self.button_cancel.config(state='normal')  # 启用取消按钮
         url = self.entry_url.get()
-        path = self.download_path
+        if not self.download_path:
+            # Default to desktop if no path is set
+            self.download_path = os.path.join(os.path.expanduser('~'), 'Desktop')
         selected_quality_with_size = self.quality_combobox.get()
         selected_quality = self.streams_map.get(selected_quality_with_size)  # 从映射中获取实际清晰度值
 
@@ -308,7 +303,7 @@ class YouTubeDownloader:
             stream = yt.streams.filter(res=selected_quality, file_extension='mp4').first()
             # print(stream)
             if stream and self.is_downloading:  # 检查是否正在下载
-                stream.download(output_path=path, filename=self.clean_filename(yt.title) + ".mp4")
+                stream.download(output_path=self.download_path, filename=self.clean_filename(yt.title) + ".mp4")
                 if not self.is_downloading:
                     return
                 # 获取用户选择的字幕名称
@@ -323,7 +318,7 @@ class YouTubeDownloader:
                         xml_captions = caption.xml_captions
                         srt_captions = self.xml2srt(xml_captions)
                         caption_filename = f"{yt.title} - {selected_caption_language_code}.srt"
-                        caption_path = os.path.join(path, self.clean_filename(caption_filename))
+                        caption_path = os.path.join(self.download_path, self.clean_filename(caption_filename))
                         with open(caption_path, "w", encoding='utf-8') as file:
                             file.write(srt_captions)
                         messagebox.showinfo("下载", "下载成功。")

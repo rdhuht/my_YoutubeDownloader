@@ -10,6 +10,7 @@ import tkinter.messagebox as mb
 import tkinter.font as tkFont
 import subprocess
 from bs4 import BeautifulSoup
+from pytube.exceptions import PytubeError
 
 
 class YouTubeDownloader:
@@ -18,6 +19,7 @@ class YouTubeDownloader:
         self.root.title("YouTube Downloader")
         self.root.minsize(width=600, height=350)  # 减少窗口的最小高度以使布局更紧凑
         self.streams_map = {}  # 新增属性来存储清晰度和文件大小的映射
+        self.is_downloading = False  # 新增属性来标记是否正在下载
 
         # 定义字体
         large_font = tkFont.Font(family="阿里巴巴普惠体 3.0 75 SemiBold", size=20)
@@ -57,6 +59,9 @@ class YouTubeDownloader:
         self.button_browse.pack(side=tk.LEFT, padx=(10, 5))
         self.button_download = ttk.Button(self.button_frame, text="下载视频", command=self.start_download_thread, bootstyle='danger')
         self.button_download.pack(side=tk.LEFT, padx=(5, 10))
+        self.button_cancel = ttk.Button(self.button_frame, text="取消下载", command=self.cancel_download, bootstyle='warning')
+        self.button_cancel.pack(side=tk.LEFT, padx=(5, 10))
+        self.button_cancel.config(state='disabled')  # 初始状态为禁用
 
         # 进度条和进度百分比
         self.progress_label = ttk.Label(root, text="0%", font=small_font)
@@ -80,15 +85,24 @@ class YouTubeDownloader:
 
 
     def browse_path(self):
-        """ 弹出一个对话框，让用户选择下载路径 """
-        self.download_path = filedialog.askdirectory()
-        if self.download_path:
-            messagebox.showinfo("路径选择", f"下载路径已选择：{self.download_path}")
-            # print(self.download_path)
+        """ 弹出一个对话框，让用户选择下载路径，如果未选择，则使用桌面作为默认路径 """
+        if not self.download_path:  # 如果之前没有选择过路径
+            if os.name == 'nt':  # Windows
+                self.download_path = os.path.join(os.environ['USERPROFILE'], 'Desktop')
+            elif os.name == 'posix':  # macOS
+                self.download_path = os.path.join(os.path.expanduser('~'), 'Desktop')
+        self.download_path = filedialog.askdirectory(initialdir=self.download_path)
+        if not self.download_path:  # 用户取消选择
+            # 回退到默认路径
+            self.download_path = os.path.join(os.environ['USERPROFILE'], 'Desktop') if os.name == 'nt' else os.path.join(os.path.expanduser('~'), 'Desktop')
+        messagebox.showinfo("路径选择", f"下载路径已选择：{self.download_path}")
+
 
 
     def show_progress(self, stream, chunk, bytes_remaining):
         """ 更新下载进度 """
+        if not self.is_downloading:
+            return  # 如果下载被取消，则不更新进度
         total_size = stream.filesize
         bytes_downloaded = total_size - bytes_remaining
         percentage_of_completion = bytes_downloaded / total_size * 100
@@ -96,38 +110,6 @@ class YouTubeDownloader:
         self.progress_label['text'] = f"{percentage_of_completion:.2f}%"  # 更新百分比标签
         self.root.update_idletasks()
 
-
-    def load_video_msg(self):
-        """加载视频信息并显示视频标题及可用字幕列表"""
-        url = self.entry_url.get()
-        try:
-            yt = YouTube(url)
-            self.video_title_label['text'] = yt.title  # 显示视频标题
-
-            streams = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution')
-            self.streams_map.clear()  # 清空之前的映射
-            qualities = []
-            for stream in streams:
-                display_text = "{} - {:.2f}MB".format(stream.resolution, stream.filesize / (1024 * 1024))
-                self.streams_map[display_text] = stream.resolution  # 储存映射
-                qualities.append(display_text)
-            self.quality_combobox['values'] = qualities
-            print(qualities)
-
-            # 获取并展示可用字幕列表
-            captions = yt.captions
-            # 创建一个映射字典，用于存储语言名称到代码的映射
-            self.caption_lang_map = {caption.name: caption.code for caption in captions}
-            # 更新下拉菜单，显示语言名称
-            self.caption_combobox['values'] = list(self.caption_lang_map.keys())
-        except Exception as e:
-            messagebox.showerror("错误", f"加载视频时出错：{e}")
-        finally:
-            # 重置下载功能
-            self.progress['value'] = 0
-            self.progress_label['text'] = "0%"
-            self.enable_buttons()  # 重新启用按钮
-            self.root.event_generate("<<CloseParsingDialog>>", when="tail")
 
     def xml2srt(self, text):
         # Ensure using 'lxml' as the parser for XML documents
@@ -162,64 +144,12 @@ class YouTubeDownloader:
         return output
 
 
-
     def clean_filename(self, filename):
         # 替换不合法字符
         invalid_chars = '<>:"/\\|?*'
         for char in invalid_chars:
             filename = filename.replace(char, '_')  # 使用下划线替代不合法字符
         return filename
-    
-    def download_video(self):
-        """根据用户选择的清晰度下载视频，并下载字幕（如果可用）"""
-        url = self.entry_url.get()
-        path = self.download_path
-        selected_quality_with_size = self.quality_combobox.get()
-        selected_quality = self.streams_map.get(selected_quality_with_size)  # 从映射中获取实际清晰度值
-        print(selected_quality)
-        try:
-            yt = YouTube(url, on_progress_callback=self.show_progress)
-            stream = yt.streams.filter(res=selected_quality, file_extension='mp4').first()
-            if stream:
-                # print(path)
-                stream.download(output_path=path, filename=self.clean_filename(yt.title) + ".mp4")
-                # print("--" + path)
-                # 获取用户选择的字幕名称
-                selected_caption_name = self.caption_combobox.get()
-                if selected_caption_name:
-                    # 从映射中获取语言代码
-                    selected_caption_language_code = self.caption_lang_map[selected_caption_name]
-                    # caption = yt.captions.get_by_language_code(selected_caption_language_code)
-                    caption = yt.captions[selected_caption_language_code]
-
-                    if caption:
-                        xml_captions = caption.xml_captions
-                        srt_captions = self.xml2srt(xml_captions)
-                        caption_filename = f"{yt.title} - {selected_caption_language_code}.srt"
-                        # print(caption_filename)
-                        # print(self.clean_filename(caption_filename))
-                        caption_path = os.path.join(path, self.clean_filename(caption_filename))
-                        with open(caption_path, "w", encoding='utf-8') as file:
-                            file.write(srt_captions)
-                        messagebox.showinfo("下载", "下载成功。")
-                    else:
-                        messagebox.showinfo("下载", "所选字幕不可用。")
-            else:
-                messagebox.showerror("错误", "未找到选定的视频清晰度")
-        except Exception as e:
-            messagebox.showerror("错误", f"下载过程中出错：{str(e)}")
-
-        finally:
-            # 下载完成后打开下载文件夹
-            self.open_download_folder()
-            # 重置下载功能
-            self.progress['value'] = 0
-            self.progress_label['text'] = "0%"
-            self.enable_buttons()  # 重新启用按钮
-            self.root.event_generate("<<CloseParsingDialog>>", when="tail")
-            # 可选：清空视频标题和清晰度选择
-            self.video_title_label['text'] = ""
-            self.quality_combobox['values'] = []
 
 
     def start_parse_video_thread(self):
@@ -248,7 +178,7 @@ class YouTubeDownloader:
         dialog.update_idletasks()  # 更新窗口任务，以便获取尺寸信息
         self.center_window(dialog)  # 将窗口居中
         return dialog
-
+    
 
     def close_parsing_dialog(self):
         """ 关闭解析提示窗口 """
@@ -274,11 +204,123 @@ class YouTubeDownloader:
     def open_download_folder(self):
         """ 打开下载文件夹 """
         if self.download_path:
-            # print(f"Attempting to open: {self.download_path}")  # 调试输出
             if os.name == 'nt':  # 对于Windows
                 subprocess.Popen(['explorer', self.download_path.replace('/', '\\')])
             elif os.name == 'posix':  # 对于macOS, Linux
                 subprocess.Popen(['open', self.download_path])
+
+
+    def cancel_download(self):
+        """取消当前下载任务"""
+        self.is_downloading = False
+        messagebox.showinfo("取消下载", "用户取消下载。")
+        self.button_cancel.config(state='disabled')  # 取消下载后禁用取消按钮
+
+
+    def load_video_msg(self):
+        """加载视频信息并显示视频标题及可用字幕列表"""
+        url = self.entry_url.get()
+        try:
+            yt = YouTube(url)
+            self.video_title_label['text'] = yt.title  # 显示视频标题
+
+            streams = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution')
+            self.streams_map.clear()  # 清空之前的映射
+            qualities = []
+            for stream in streams:
+                display_text = "{} - {:.2f}MB".format(stream.resolution, stream.filesize / (1024 * 1024))
+                self.streams_map[display_text] = stream.resolution  # 储存映射
+                qualities.append(display_text)
+            self.quality_combobox['values'] = qualities
+            qualities.sort(reverse=True)  # 确保最高清晰度在第一位
+            self.quality_combobox['values'] = qualities
+            if qualities:
+                self.quality_combobox.current(0)  # 自动选择最清晰的选项
+
+            # 获取并展示可用字幕列表
+            captions = yt.captions
+            # 创建一个映射字典，用于存储语言名称到代码的映射
+            self.caption_lang_map = {caption.name: caption.code for caption in captions}
+            # 更新下拉菜单，显示语言名称
+            self.caption_combobox['values'] = list(self.caption_lang_map.keys())
+
+            # 设置默认字幕选择逻辑，根据实际可用选项调整
+            caption_preferences = ['Chinese', 'Chinese (Traditional)', 'English']
+            selected_caption = None
+            for pref in caption_preferences:
+                if pref in self.caption_lang_map:  # 确保使用的是实际存在的键
+                    selected_caption = pref
+                    break
+            if selected_caption:
+                # 设置Combobox为首选字幕语言
+                self.caption_combobox.set(selected_caption)
+
+        except PytubeError as e:
+            messagebox.showerror("Pytube 错误", f"加载视频时出错: {e}")
+        except Exception as e:
+            messagebox.showerror("错误", f"加载视频时出错：{e}")
+        finally:
+            # 重置下载功能
+            self.progress['value'] = 0
+            self.progress_label['text'] = "0%"
+            self.enable_buttons()  # 重新启用按钮
+            self.root.event_generate("<<CloseParsingDialog>>", when="tail")
+
+
+    def download_video(self):
+        """根据用户选择的清晰度下载视频，并下载字幕（如果可用）"""
+        self.is_downloading = True
+        self.button_cancel.config(state='normal')  # 启用取消按钮
+        url = self.entry_url.get()
+        path = self.download_path
+        selected_quality_with_size = self.quality_combobox.get()
+        selected_quality = self.streams_map.get(selected_quality_with_size)  # 从映射中获取实际清晰度值
+
+        try:
+            yt = YouTube(url, on_progress_callback=self.show_progress)
+            stream = yt.streams.filter(res=selected_quality, file_extension='mp4').first()
+            if stream and self.is_downloading:  # 检查是否正在下载
+                stream.download(output_path=path, filename=self.clean_filename(yt.title) + ".mp4")
+                if not self.is_downloading:
+                    return
+                # 获取用户选择的字幕名称
+                selected_caption_name = self.caption_combobox.get()
+                if selected_caption_name:
+                    # 从映射中获取语言代码
+                    selected_caption_language_code = self.caption_lang_map[selected_caption_name]
+                    # caption = yt.captions.get_by_language_code(selected_caption_language_code)
+                    caption = yt.captions[selected_caption_language_code]
+
+                    if caption:
+                        xml_captions = caption.xml_captions
+                        srt_captions = self.xml2srt(xml_captions)
+                        caption_filename = f"{yt.title} - {selected_caption_language_code}.srt"
+                        caption_path = os.path.join(path, self.clean_filename(caption_filename))
+                        with open(caption_path, "w", encoding='utf-8') as file:
+                            file.write(srt_captions)
+                        messagebox.showinfo("下载", "下载成功。")
+                    else:
+                        messagebox.showinfo("下载", "所选字幕不可用。")
+            else:
+                messagebox.showerror("提醒", "取消下载中，请稍等~")
+        except PytubeError as e:
+            messagebox.showerror("Pytube 错误", f"下载过程中出错: {e}")
+        except Exception as e:
+            messagebox.showerror("错误", f"下载过程中出错：{str(e)}")
+
+        finally:
+            self.is_downloading = False
+            self.button_cancel.config(state='disabled')
+            # 下载完成后打开下载文件夹
+            self.open_download_folder()
+            # 重置下载功能
+            self.progress['value'] = 0
+            self.progress_label['text'] = "0%"
+            self.enable_buttons()  # 重新启用按钮
+            self.root.event_generate("<<CloseParsingDialog>>", when="tail")
+            # 可选：清空视频标题和清晰度选择
+            # self.video_title_label['text'] = ""
+            # self.quality_combobox['values'] = []
 
 
 

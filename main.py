@@ -252,7 +252,7 @@ class YouTubeDownloader:
             self.caption_combobox['values'] = list(self.caption_lang_map.keys())
 
             # 设置默认字幕选择逻辑，根据实际可用选项调整
-            caption_preferences = ['Chinese', 'Chinese (Traditional)', 'English']
+            caption_preferences = ['Chinese (China)', 'Chinese', 'Chinese (Traditional)', 'English']
             selected_caption = None
             for pref in caption_preferences:
                 if pref in self.caption_lang_map:  # 确保使用的是实际存在的键

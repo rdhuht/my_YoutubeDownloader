@@ -1,4 +1,5 @@
 import os
+import time
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import ttkbootstrap as ttk
@@ -20,6 +21,7 @@ class YouTubeDownloader:
         self.root.minsize(width=600, height=350)  # 减少窗口的最小高度以使布局更紧凑
         self.streams_map = {}  # 新增属性来存储清晰度和文件大小的映射
         self.is_downloading = False  # 新增属性来标记是否正在下载
+        self.download_start_time = None
 
         # 定义字体
         large_font = tkFont.Font(family="阿里巴巴普惠体 3.0 75 SemiBold", size=20)
@@ -109,6 +111,10 @@ class YouTubeDownloader:
         self.progress['value'] = percentage_of_completion
         self.progress_label['text'] = f"{percentage_of_completion:.2f}%"  # 更新百分比标签
         self.root.update_idletasks()
+        if self.download_start_time:
+            elapsed_time = time.time() - self.download_start_time
+            elapsed_time_str = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
+            self.root.title(f"YouTube Downloader - 用时: {elapsed_time_str}")
 
 
     def xml2srt(self, text):
@@ -222,6 +228,7 @@ class YouTubeDownloader:
         self.is_downloading = False
         messagebox.showinfo("取消下载", "用户取消下载。")
         self.button_cancel.config(state='disabled')  # 取消下载后禁用取消按钮
+        self.root.title("YouTube Downloader")
 
 
     def load_video_msg(self):
@@ -273,9 +280,23 @@ class YouTubeDownloader:
             self.root.event_generate("<<CloseParsingDialog>>", when="tail")
 
 
+
+    def update_elapsed_time(self):
+        if self.download_start_time and self.is_downloading:
+            elapsed_time = time.time() - self.download_start_time
+            elapsed_time_str = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
+            self.root.title(f"YouTube Downloader - 用时: {elapsed_time_str}")
+            # Call this method again after 1 second
+            self.root.after(1000, self.update_elapsed_time)
+
+
     def download_video(self):
         """根据用户选择的清晰度下载视频，并下载字幕（如果可用）"""
+        self.root.title("YouTube Downloader")
         self.is_downloading = True
+        self.download_start_time = time.time()  # Record start time
+        self.update_elapsed_time()  # Start the elapsed time update timer
+
         self.button_cancel.config(state='normal')  # 启用取消按钮
         url = self.entry_url.get()
         path = self.download_path
@@ -285,6 +306,7 @@ class YouTubeDownloader:
         try:
             yt = YouTube(url, on_progress_callback=self.show_progress)
             stream = yt.streams.filter(res=selected_quality, file_extension='mp4').first()
+            # print(stream)
             if stream and self.is_downloading:  # 检查是否正在下载
                 stream.download(output_path=path, filename=self.clean_filename(yt.title) + ".mp4")
                 if not self.is_downloading:
@@ -317,6 +339,7 @@ class YouTubeDownloader:
         finally:
             self.is_downloading = False
             self.button_cancel.config(state='disabled')
+            # self.root.title("YouTube Downloader")
             # 下载完成后打开下载文件夹
             self.open_download_folder()
             # 重置下载功能

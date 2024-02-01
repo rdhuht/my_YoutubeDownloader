@@ -224,12 +224,11 @@ class YouTubeDownloader:
             yt = YouTube(url)
             self.video_title_label['text'] = yt.title  # 显示视频标题
 
-            streams = yt.streams.filter(progressive=False, file_extension='mp4').order_by('resolution')
+            streams = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution')
             self.streams_map.clear()  # 清空之前的映射
             qualities = []
             for stream in streams:
                 display_text = "{} - {:.2f}MB".format(stream.resolution, stream.filesize / (1024 * 1024))
-                print(stream.resolution)
                 self.streams_map[display_text] = stream.resolution  # 储存映射
                 qualities.append(display_text)
             self.quality_combobox['values'] = qualities

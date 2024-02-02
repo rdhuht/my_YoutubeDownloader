@@ -308,7 +308,6 @@ class YouTubeDownloader:
                     return
             else:
                 print("无此分辨率")
-            print("--字幕下载--")
             self.download_caption(yt)
         except PytubeError as e:
             messagebox.showerror("Pytube 错误", f"下载过程中出错: {e}")

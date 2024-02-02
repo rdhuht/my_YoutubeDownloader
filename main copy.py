@@ -232,7 +232,7 @@ class YouTubeDownloader:
             yt = YouTube(url)
             self.video_title_label['text'] = yt.title  # 显示视频标题
 
-            streams = yt.streams.filter(progressive=False, file_extension='mp4').order_by('resolution')
+            streams = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution')
             self.streams_map.clear()  # 清空之前的映射
             qualities = []
             for stream in streams:
@@ -297,43 +297,35 @@ class YouTubeDownloader:
             self.download_path = os.path.join(os.path.expanduser('~'), 'Desktop')
         selected_quality_with_size = self.quality_combobox.get()
         selected_quality = self.streams_map.get(selected_quality_with_size)  # 从映射中获取实际清晰度值
-        print(selected_quality, type(selected_quality))
-                
+
         try:
             yt = YouTube(url, on_progress_callback=self.show_progress)
-            if selected_quality in ["144p", "240p", "360p", "480p", "720p"]:
-                stream = yt.streams.filter(res=selected_quality, file_extension='mp4').first()
-                if stream and self.is_downloading:
-                    print("--低分辨率下载--")
-                    stream.download(output_path=self.download_path, filename=self.clean_filename(yt.title) + ".mp4")
-            elif selected_quality in ["1080p"]:
-                # Get the resolution video-only stream
-                video_stream = yt.streams.filter(res=selected_quality, mime_type='video/mp4').first()
-                # Get the best audio stream
-                audio_stream = yt.streams.filter(only_audio=True, mime_type='audio/mp4').first()
-                if video_stream and audio_stream and self.is_downloading:
-                    print("--高分辨率下载--")
-                    video_filename = video_stream.download(output_path=self.download_path, filename_prefix="video_")
-                    audio_filename = audio_stream.download(output_path=self.download_path, filename_prefix="audio_")
-                    print(f"Video downloaded: {video_filename}")
-                    print(f"Audio downloaded: {audio_filename}")
-
-                    # Merge video and audio
-                    merged_filename = self.clean_filename(yt.title) + ".mp4"
-                    merged_filepath = os.path.join(self.download_path, merged_filename)
-                    ffmpeg_command = f"ffmpeg -i {video_filename} -i {audio_filename} -c:v copy -c:a aac {merged_filepath}"
-                    subprocess.call(ffmpeg_command, shell=True)
-
-                    # Delete the separate video and audio files
-                    # os.remove(video_path)
-                    # os.remove(audio_path)
-
+            stream = yt.streams.filter(res=selected_quality, file_extension='mp4').first()
+            # print(stream)
+            if stream and self.is_downloading:  # 检查是否正在下载
+                stream.download(output_path=self.download_path, filename=self.clean_filename(yt.title) + ".mp4")
                 if not self.is_downloading:
                     return
+                # 获取用户选择的字幕名称
+                selected_caption_name = self.caption_combobox.get()
+                if selected_caption_name:
+                    # 从映射中获取语言代码
+                    selected_caption_language_code = self.caption_lang_map[selected_caption_name]
+                    # caption = yt.captions.get_by_language_code(selected_caption_language_code)
+                    caption = yt.captions[selected_caption_language_code]
+
+                    if caption:
+                        xml_captions = caption.xml_captions
+                        srt_captions = self.xml2srt(xml_captions)
+                        caption_filename = f"{yt.title} - {selected_caption_language_code}.srt"
+                        caption_path = os.path.join(self.download_path, self.clean_filename(caption_filename))
+                        with open(caption_path, "w", encoding='utf-8') as file:
+                            file.write(srt_captions)
+                        messagebox.showinfo("下载", "下载成功。")
+                    else:
+                        messagebox.showinfo("下载", "所选字幕不可用。")
             else:
-                print("无此分辨率")
-            print("--字幕下载--")
-            self.download_caption(yt)
+                messagebox.showerror("提醒", "取消下载中，请稍等~")
         except PytubeError as e:
             messagebox.showerror("Pytube 错误", f"下载过程中出错: {e}")
         except Exception as e:
@@ -354,25 +346,6 @@ class YouTubeDownloader:
             # self.video_title_label['text'] = ""
             # self.quality_combobox['values'] = []
 
-
-    def download_caption(self, yt):
-        # 获取用户选择的字幕名称
-        selected_caption_name = self.caption_combobox.get()
-        if selected_caption_name:
-            # 从映射中获取语言代码
-            selected_caption_language_code = self.caption_lang_map[selected_caption_name]
-            caption = yt.captions[selected_caption_language_code]
-
-            if caption:
-                xml_captions = caption.xml_captions
-                srt_captions = self.xml2srt(xml_captions)
-                caption_filename = f"{yt.title} - {selected_caption_language_code}.srt"
-                caption_path = os.path.join(self.download_path, self.clean_filename(caption_filename))
-                with open(caption_path, "w", encoding='utf-8') as file:
-                    file.write(srt_captions)
-                messagebox.showinfo("下载", "下载成功。")
-            else:
-                messagebox.showinfo("下载", "所选字幕不可用。")
 
 
 if __name__ == "__main__":

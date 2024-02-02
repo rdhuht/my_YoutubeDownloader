@@ -316,11 +316,14 @@ class YouTubeDownloader:
                     print("--高分辨率下载--")
                     video_filename = video_stream.download(output_path=self.download_path, filename_prefix="video_")
                     audio_filename = audio_stream.download(output_path=self.download_path, filename_prefix="audio_")
-                    # 将下载的音视频MP4合并
-                    video_clip = VideoFileClip(video_filename)
+                    output_filename = self.clean_filename(yt.title) + ".mp4"
                     self.convert_audio_to_mp3(audio_filename)
-                    print("mp3 ok")
-                    # 怎么将video_clip和self.convert_audio_to_mp3(audio_filename)转换好的mp3文件合并成一个mp4文件呢？
+                    audio_mp3_filename = os.path.splitext(audio_filename)[0] + '.mp3'
+                    self.merge_video_audio(video_filename, audio_mp3_filename, output_filename)
+                    # Cleanup the temporary files if needed
+                    os.remove(video_filename)
+                    os.remove(audio_filename)
+                    os.remove(audio_mp3_filename)  
                 if not self.is_downloading:
                     return
             else:
@@ -346,6 +349,28 @@ class YouTubeDownloader:
             # 可选：清空视频标题和清晰度选择
             # self.video_title_label['text'] = ""
             # self.quality_combobox['values'] = []
+
+
+    def merge_video_audio(self, video_filename, audio_filename, output_filename):
+        # Load the video file (without audio)
+        video_clip = VideoFileClip(video_filename)
+        
+        # Load the converted audio file
+        audio_clip = AudioFileClip(audio_filename)
+        
+        # Set the audio of the video clip to the audio clip
+        final_clip = video_clip.set_audio(audio_clip)
+        
+        # Specify the output filename with the desired path and extension
+        output_filepath = os.path.join(self.download_path, output_filename)
+        
+        # Write the resulting video file to disk
+        final_clip.write_videofile(output_filepath, codec="libx264", audio_codec="aac")
+        
+        # Close the clips to free up system resources
+        video_clip.close()
+        audio_clip.close()
+        final_clip.close()
 
 
     def convert_audio_to_mp3(self, audio_source_filename):

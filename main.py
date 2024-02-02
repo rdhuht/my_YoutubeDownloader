@@ -12,6 +12,7 @@ import tkinter.font as tkFont
 import subprocess
 from bs4 import BeautifulSoup
 from pytube.exceptions import PytubeError
+from moviepy.editor import VideoFileClip, AudioFileClip
 
 
 class YouTubeDownloader:
@@ -113,7 +114,7 @@ class YouTubeDownloader:
 
     def xml2srt(self, text):
         # Ensure using 'lxml' as the parser for XML documents
-        soup = BeautifulSoup(text, 'lxml')  # Changed from 'html.parser' to 'lxml'
+        soup = BeautifulSoup(text, 'xml')
         ps = soup.findAll('p')
         output = ''
         num = 0
@@ -297,7 +298,7 @@ class YouTubeDownloader:
             self.download_path = os.path.join(os.path.expanduser('~'), 'Desktop')
         selected_quality_with_size = self.quality_combobox.get()
         selected_quality = self.streams_map.get(selected_quality_with_size)  # 从映射中获取实际清晰度值
-        print(selected_quality, type(selected_quality))
+        # print(selected_quality, type(selected_quality))
                 
         try:
             yt = YouTube(url, on_progress_callback=self.show_progress)
@@ -315,19 +316,11 @@ class YouTubeDownloader:
                     print("--高分辨率下载--")
                     video_filename = video_stream.download(output_path=self.download_path, filename_prefix="video_")
                     audio_filename = audio_stream.download(output_path=self.download_path, filename_prefix="audio_")
-                    print(f"Video downloaded: {video_filename}")
-                    print(f"Audio downloaded: {audio_filename}")
-
-                    # Merge video and audio
-                    merged_filename = self.clean_filename(yt.title) + ".mp4"
-                    merged_filepath = os.path.join(self.download_path, merged_filename)
-                    ffmpeg_command = f"ffmpeg -i {video_filename} -i {audio_filename} -c:v copy -c:a aac {merged_filepath}"
-                    subprocess.call(ffmpeg_command, shell=True)
-
-                    # Delete the separate video and audio files
-                    # os.remove(video_path)
-                    # os.remove(audio_path)
-
+                    # 将下载的音视频MP4合并
+                    video_clip = VideoFileClip(video_filename)
+                    self.convert_audio_to_mp3(audio_filename)
+                    print("mp3 ok")
+                    # 怎么将video_clip和self.convert_audio_to_mp3(audio_filename)转换好的mp3文件合并成一个mp4文件呢？
                 if not self.is_downloading:
                     return
             else:
@@ -353,6 +346,13 @@ class YouTubeDownloader:
             # 可选：清空视频标题和清晰度选择
             # self.video_title_label['text'] = ""
             # self.quality_combobox['values'] = []
+
+
+    def convert_audio_to_mp3(self, audio_source_filename):
+        audio_clip = AudioFileClip(os.path.join(self.download_path, audio_source_filename))
+        target_mp3_filename = os.path.splitext(audio_source_filename)[0] + '.mp3'
+        output_path_mp3 = os.path.join(self.download_path, target_mp3_filename)
+        audio_clip.write_audiofile(output_path_mp3)
 
 
     def download_caption(self, yt):

@@ -12,7 +12,7 @@ import tkinter.font as tkFont
 import subprocess
 from bs4 import BeautifulSoup
 from pytube.exceptions import PytubeError
-from moviepy.editor import VideoFileClip, AudioFileClip
+import subprocess
 
 
 class YouTubeDownloader:
@@ -92,7 +92,8 @@ class YouTubeDownloader:
         self.download_path = filedialog.askdirectory(initialdir=initial_path)
         if not self.download_path:  # If the user cancels the selection
             self.download_path = initial_path  # Default to Desktop
-        messagebox.showinfo("路径选择", f"下载路径已选择：{self.download_path}")
+        # messagebox.showinfo("路径选择", f"下载路径已选择：{self.download_path}")
+        self.root.title(f"YouTube Downloader - 下载路径已选择：{self.download_path}")
 
 
     def show_progress(self, stream, chunk, bytes_remaining):
@@ -163,7 +164,7 @@ class YouTubeDownloader:
         """ 在新线程中开始分析视频信息，并重置进度条 """
         self.progress['value'] = 0
         self.disable_buttons()  # 禁用按钮
-        self.root.title(f"YouTube Downloader - 开始解析视频信息")
+        self.root.title(f"YouTube Downloader - 解析视频信息中……")
         threading.Thread(target=self.load_video_msg).start()
 
 
@@ -227,6 +228,10 @@ class YouTubeDownloader:
 
             # 获取并展示可用字幕列表
             captions = yt.captions
+            if len(captions) == 0:
+                self.root.title("YouTube Downloader - 无字幕文件，请选择分辨率和下载路径")
+            else:
+                self.root.title("YouTube Downloader - 请选择分辨率、字幕和下载路径")
             # 创建一个映射字典，用于存储语言名称到代码的映射
             self.caption_lang_map = {caption.name: caption.code for caption in captions}
             # 更新下拉菜单，显示语言名称
@@ -278,7 +283,6 @@ class YouTubeDownloader:
             self.download_path = os.path.join(os.path.expanduser('~'), 'Desktop')
         selected_quality_with_size = self.quality_combobox.get()
         selected_quality = self.streams_map.get(selected_quality_with_size)  # 从映射中获取实际清晰度值
-        # print(selected_quality, type(selected_quality))
                 
         try:
             yt = YouTube(url, on_progress_callback=self.show_progress)
@@ -296,14 +300,10 @@ class YouTubeDownloader:
                     self.root.title("YouTube Downloader - 开始下载高清视频")
                     video_filename = video_stream.download(output_path=self.download_path, filename_prefix="video_")
                     audio_filename = audio_stream.download(output_path=self.download_path, filename_prefix="audio_")
-                    output_filename = self.clean_filename(yt.title) + ".mp4"
-                    self.convert_audio_to_mp3(audio_filename)
-                    audio_mp3_filename = os.path.splitext(audio_filename)[0] + '.mp3'
-                    self.merge_video_audio(video_filename, audio_mp3_filename, output_filename)
-                    # Cleanup the temporary files if needed
-                    os.remove(video_filename)
-                    os.remove(audio_filename)
-                    os.remove(audio_mp3_filename)  
+                # 合并音视频文件
+                output_filename = self.clean_filename(yt.title) + ".mp4"
+                output_path = os.path.join(self.download_path, output_filename)
+                self.merge_video_and_audio(video_filename, audio_filename, output_path)
                 if not self.is_downloading:
                     return
             else:
@@ -318,7 +318,7 @@ class YouTubeDownloader:
             self.is_downloading = False
             self.button_cancel.config(state='disabled')
             # self.root.title("YouTube Downloader")
-
+            self.open_download_folder()
             # 重置下载功能
             self.progress['value'] = 0
             self.progress_label['text'] = "0%"
@@ -327,36 +327,6 @@ class YouTubeDownloader:
             # 可选：清空视频标题和清晰度选择
             # self.video_title_label['text'] = ""
             # self.quality_combobox['values'] = []
-
-
-    def merge_video_audio(self, video_filename, audio_filename, output_filename):
-        self.root.title(f"YouTube Downloader - 开始合并视频")
-        # Load the video file (without audio)
-        video_clip = VideoFileClip(video_filename)
-        
-        # Load the converted audio file
-        audio_clip = AudioFileClip(audio_filename)
-
-        # Set the audio of the video clip to the audio clip
-        final_clip = video_clip.set_audio(audio_clip)
-        
-        # Specify the output filename with the desired path and extension
-        output_filepath = os.path.join(self.download_path, output_filename)
-        
-        # Write the resulting video file to disk
-        final_clip.write_videofile(output_filepath, codec="libx264", audio_codec="aac")
-        
-        # Close the clips to free up system resources
-        video_clip.close()
-        audio_clip.close()
-        final_clip.close()
-
-
-    def convert_audio_to_mp3(self, audio_source_filename):
-        audio_clip = AudioFileClip(os.path.join(self.download_path, audio_source_filename))
-        target_mp3_filename = os.path.splitext(audio_source_filename)[0] + '.mp3'
-        output_path_mp3 = os.path.join(self.download_path, target_mp3_filename)
-        audio_clip.write_audiofile(output_path_mp3)
 
 
     def download_caption(self, yt):
@@ -377,6 +347,34 @@ class YouTubeDownloader:
                 messagebox.showinfo("下载", "下载成功。")
             else:
                 messagebox.showinfo("下载", "所选字幕不可用。")
+
+
+    def merge_video_and_audio(self, video_path, audio_path, output_path):
+        """
+        Merges video and audio into a single MP4 file using ffmpeg.
+
+        Parameters:
+        video_path (str): Path to the video-only file.
+        audio_path (str): Path to the audio-only file.
+        output_path (str): Path where the merged MP4 file should be saved.
+        """
+        cmd = [
+            'ffmpeg',
+            '-i', video_path,  # Input video file
+            '-i', audio_path,  # Input audio file
+            '-c:v', 'copy',  # Copy the video stream
+            '-c:a', 'aac',  # Re-encode the audio stream to AAC
+            '-strict', 'experimental',
+            output_path,  # Output file path
+            '-y'  # Overwrite output file if it exists
+        ]
+        try:
+            subprocess.run(cmd, check=True)
+            # After merging, you might want to delete the original files
+            os.remove(video_path)
+            os.remove(audio_path)
+        except subprocess.CalledProcessError as e:
+            print(f"Error during merging video and audio: {e}")
 
 
 if __name__ == "__main__":

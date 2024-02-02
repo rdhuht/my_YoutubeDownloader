@@ -1,75 +1,41 @@
 
 # YouTube Downloader
 
-This is a Python application for downloading YouTube videos and their subtitles.
+## 简介 / Introduction
+这是一个使用Python编写的YouTube视频下载器GUI应用程序。它允许用户输入YouTube视频链接，选择视频质量和字幕（如果可用），并下载视频到指定的位置。 / This is a GUI application for downloading YouTube videos written in Python. It allows users to input a YouTube video link, select video quality and captions (if available), and download the video to a specified location.
 
-这是一个用于下载YouTube视频及其字幕的Python应用程序。 It allows users to select video quality and subtitle language, providing a simple and user-friendly interface.
+## 功能 / Features
+- 视频信息加载：根据输入的YouTube视频链接加载视频信息。 / Video information loading: Load video information based on the input YouTube video link.
+- 视频质量选择：用户可以选择不同的视频质量进行下载。 / Video quality selection: Users can select different video qualities for download.
+- 字幕下载：如果视频有字幕，用户可以选择下载字幕。 / Captions download: If the video has captions, users can choose to download the captions.
+- 下载路径选择：用户可以指定视频下载的路径。 / Download path selection: Users can specify the path where the video will be downloaded.
+- GUI界面：提供图形用户界面，方便用户操作。 / GUI interface: Provides a graphical user interface for easy user operation.
 
-它允许用户选择视频质量和字幕语言，提供了一个简单易用的界面。
-
-## Features
-
-功能特点
-
-- Download YouTube videos in various resolutions.
-
-以不同的分辨率下载YouTube视频。
-- Download subtitles in different languages.
-
-下载不同语言的字幕。
-- Simple and intuitive GUI.
-
-简单直观的图形用户界面。
-- Display of download progress.
-
-显示下载进度。
-- Option to choose download directory.
-
-选择下载目录的选项。
-
-## Requirements
-
-使用要求
-
-Before running the application, ensure you have the following installed:
-- Python 3
-- pytube
+## 依赖 / Dependencies
+- Python 3.6+
+- tkinter
 - ttkbootstrap
+- pytube
 - BeautifulSoup4
 
-## Installation
+## 安装 / Installation
+首先，确保安装了Python 3.6或更高版本。然后，使用pip安装所需的依赖： / First, ensure Python 3.6 or higher is installed. Then, install the required dependencies using pip:
+```
+pip install pytube ttkbootstrap beautifulsoup4
+```
 
-1. Install the required packages:
-   ```
-   pip install pytube ttkbootstrap beautifulsoup4
-   ```
-2. Clone or download this repository to your local machine.
+## 使用 / Usage
+1. 运行脚本： / Run the script:
+```
+python youtube_downloader.py
+```
+2. 输入YouTube视频链接并点击“加载视频信息”按钮。 / Enter the YouTube video link and click the "Load Video Info" button.
+3. 选择视频质量和字幕（如果需要）。 / Select video quality and captions (if needed).
+4. 选择下载路径（默认为桌面）。 / Choose the download path (default is Desktop).
+5. 点击“下载视频”开始下载。 / Click "Download Video" to start downloading.
 
-## Usage
+## 许可 / License
+MIT
 
-使用方法
-
-1. Run the script:
-   ```
-   python youtube_downloader.py
-   ```
-2. Enter the YouTube video URL.
-3. Click '加载视频信息' to load video information.
-4. Select the desired video quality and subtitle language.
-5. Choose the download directory.
-6. Click '下载视频' to start the download.
-
-## Note
-
-- This application is developed for educational purposes.
-- Ensure you have the right to download the specific YouTube content.
-
-## License
-
-This project is licensed under the MIT License
-
-许可证 - see the [LICENSE](LICENSE) file for details.
-
-
-
-
+## 警告 / Disclaimer
+本工具仅供学习和研究目的，请勿用于任何非法目的。使用本工具下载视频可能违反YouTube的服务条款，请自行承担相应的法律责任。 / This tool is for educational and research purposes only, do not use it for any illegal purposes. Downloading videos using this tool may violate YouTube's Terms of Service, use it at your own risk.

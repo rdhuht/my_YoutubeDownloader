@@ -13,6 +13,9 @@ import subprocess
 from bs4 import BeautifulSoup
 from pytube.exceptions import PytubeError
 import subprocess
+import sys
+import tempfile
+import shutil
 
 
 class YouTubeDownloader:
@@ -111,6 +114,23 @@ class YouTubeDownloader:
             elapsed_time_str = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
             self.root.title(f"YouTube Downloader - 用时: {elapsed_time_str}")
 
+
+
+    def get_ffmpeg_path(self):
+        """
+        解压并返回 ffmpeg 的路径。如果是打包的应用程序，则从临时目录运行。
+        """
+        if getattr(sys, 'frozen', False):
+            # 如果应用程序是打包的，则从 _MEIPASS 目录解压 ffmpeg
+            temp_dir = tempfile.mkdtemp()
+            ffmpeg_temp_path = os.path.join(temp_dir, 'ffmpeg.exe')
+            shutil.copyfile(os.path.join(sys._MEIPASS, 'ffmpeg.exe'), ffmpeg_temp_path)
+            os.chmod(ffmpeg_temp_path, 0o755)  # 确保文件是可执行的
+            return ffmpeg_temp_path
+        else:
+            # 如果是在开发环境，则直接返回项目目录中的 ffmpeg 路径
+            return os.path.join(os.path.dirname(__file__), 'ffmpeg', 'ffmpeg.exe')
+        
 
     def xml2srt(self, text):
         # Ensure using 'lxml' as the parser for XML documents
@@ -351,30 +371,27 @@ class YouTubeDownloader:
 
     def merge_video_and_audio(self, video_path, audio_path, output_path):
         """
-        Merges video and audio into a single MP4 file using ffmpeg.
-
-        Parameters:
-        video_path (str): Path to the video-only file.
-        audio_path (str): Path to the audio-only file.
-        output_path (str): Path where the merged MP4 file should be saved.
+        使用 ffmpeg 合并视频和音频到一个 MP4 文件。
         """
+        ffmpeg_path = self.get_ffmpeg_path()  # 获取 ffmpeg 的路径
         cmd = [
-            'ffmpeg',
-            '-i', video_path,  # Input video file
-            '-i', audio_path,  # Input audio file
-            '-c:v', 'copy',  # Copy the video stream
-            '-c:a', 'aac',  # Re-encode the audio stream to AAC
+            ffmpeg_path,  # 使用获取的 ffmpeg 路径
+            '-i', video_path,
+            '-i', audio_path,
+            '-c:v', 'copy',
+            '-c:a', 'aac',
             '-strict', 'experimental',
-            output_path,  # Output file path
-            '-y'  # Overwrite output file if it exists
+            output_path,
+            '-y'
         ]
         try:
+            self.root.title(f"YouTube Downloader - 合并视频和音频中……")
             subprocess.run(cmd, check=True)
-            # After merging, you might want to delete the original files
-            os.remove(video_path)
-            os.remove(audio_path)
+            os.remove(video_path)  # 删除原始视频文件
+            os.remove(audio_path)  # 删除原始音频文件
         except subprocess.CalledProcessError as e:
-            print(f"Error during merging video and audio: {e}")
+            messagebox.showerror("合并错误", f"合并视频和音频时出错: {e}")
+
 
 
 if __name__ == "__main__":

@@ -1,4 +1,9 @@
 import os
+import subprocess
+import sys
+import tempfile
+import shutil
+import platform
 import time
 import tkinter as tk
 from tkinter import filedialog, messagebox
@@ -12,10 +17,6 @@ import tkinter.font as tkFont
 import subprocess
 from bs4 import BeautifulSoup
 from pytube.exceptions import PytubeError
-import subprocess
-import sys
-import tempfile
-import shutil
 
 
 class YouTubeDownloader:
@@ -116,21 +117,45 @@ class YouTubeDownloader:
 
 
 
+    # def get_ffmpeg_path(self):
+    #     """
+    #     解压并返回 ffmpeg 的路径。如果是打包的应用程序，则从临时目录运行。
+    #     """
+    #     if getattr(sys, 'frozen', False):
+    #         # 如果应用程序是打包的，则从 _MEIPASS 目录解压 ffmpeg
+    #         temp_dir = tempfile.mkdtemp()
+    #         ffmpeg_temp_path = os.path.join(temp_dir, 'ffmpeg.exe')
+    #         shutil.copyfile(os.path.join(sys._MEIPASS, 'ffmpeg.exe'), ffmpeg_temp_path)
+    #         os.chmod(ffmpeg_temp_path, 0o755)  # 确保文件是可执行的
+    #         return ffmpeg_temp_path
+    #     else:
+    #         # 如果是在开发环境，则直接返回项目目录中的 ffmpeg 路径
+    #         return os.path.join(os.path.dirname(__file__), 'ffmpeg', 'ffmpeg.exe')
+
+
     def get_ffmpeg_path(self):
         """
-        解压并返回 ffmpeg 的路径。如果是打包的应用程序，则从临时目录运行。
+        解压并返回 ffmpeg 的路径。根据操作系统的不同，适配不同的执行逻辑。
+        如果是打包的应用程序，则从临时目录运行。支持Windows和macOS。
         """
+        # 检测操作系统
+        if platform.system() == 'Windows':
+            ffmpeg_exe = 'ffmpeg.exe'
+        else:
+            ffmpeg_exe = 'ffmpeg'
+
         if getattr(sys, 'frozen', False):
             # 如果应用程序是打包的，则从 _MEIPASS 目录解压 ffmpeg
             temp_dir = tempfile.mkdtemp()
-            ffmpeg_temp_path = os.path.join(temp_dir, 'ffmpeg.exe')
-            shutil.copyfile(os.path.join(sys._MEIPASS, 'ffmpeg.exe'), ffmpeg_temp_path)
+            ffmpeg_temp_path = os.path.join(temp_dir, ffmpeg_exe)
+            shutil.copyfile(os.path.join(sys._MEIPASS, ffmpeg_exe), ffmpeg_temp_path)
             os.chmod(ffmpeg_temp_path, 0o755)  # 确保文件是可执行的
             return ffmpeg_temp_path
         else:
             # 如果是在开发环境，则直接返回项目目录中的 ffmpeg 路径
-            return os.path.join(os.path.dirname(__file__), 'ffmpeg', 'ffmpeg.exe')
-        
+            return os.path.join(os.path.dirname(__file__), 'ffmpeg', ffmpeg_exe)
+
+
 
     def xml2srt(self, text):
         # Ensure using 'lxml' as the parser for XML documents

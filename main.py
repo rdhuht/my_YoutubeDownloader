@@ -75,7 +75,6 @@ class YouTubeDownloader:
         self.download_path = ""  # 用于存储下载路径
 
         self.center_window(self.root)
-        self.root.bind("<<CloseParsingDialog>>", lambda e: self.close_parsing_dialog())
 
 
     def center_window(self, window):
@@ -164,7 +163,7 @@ class YouTubeDownloader:
         """ 在新线程中开始分析视频信息，并重置进度条 """
         self.progress['value'] = 0
         self.disable_buttons()  # 禁用按钮
-        self.parsing_dialog = self.show_dialog()  # 加载视频信息
+        self.root.title(f"YouTube Downloader - 开始解析视频信息")
         threading.Thread(target=self.load_video_msg).start()
 
 
@@ -172,27 +171,8 @@ class YouTubeDownloader:
         """ 在新线程中开始下载视频，并重置进度条 """
         self.progress['value'] = 0
         self.disable_buttons()  # 禁用按钮
-        self.parsing_dialog = self.show_dialog()  # 显示解析提示
+        self.root.title(f"YouTube Downloader - 开始下载")
         threading.Thread(target=self.download_video).start()
-
-
-    def show_dialog(self):
-        """ 显示一个解析和下载时的提示 """
-        dialog = tk.Toplevel(self.root)
-        dialog.title("提示")
-        tk.Label(dialog, text="正在处理中，请稍等……").pack(pady=10)
-        dialog.transient(self.root)
-        dialog.grab_set()
-        dialog.update_idletasks()  # 更新窗口任务，以便获取尺寸信息
-        self.center_window(dialog)  # 将窗口居中
-        return dialog
-    
-
-    def close_parsing_dialog(self):
-        """ 关闭解析提示窗口 """
-        if self.parsing_dialog:
-            self.parsing_dialog.destroy()
-            self.parsing_dialog = None
 
 
     def disable_buttons(self):
@@ -305,7 +285,7 @@ class YouTubeDownloader:
             if selected_quality in ["144p", "240p", "360p", "480p", "720p"]:
                 stream = yt.streams.filter(res=selected_quality, file_extension='mp4').first()
                 if stream and self.is_downloading:
-                    print("--低分辨率下载--")
+                    self.root.title("YouTube Downloader - 开始下载普通视频")
                     stream.download(output_path=self.download_path, filename=self.clean_filename(yt.title) + ".mp4")
             elif selected_quality in ["1080p"]:
                 # Get the resolution video-only stream
@@ -313,7 +293,7 @@ class YouTubeDownloader:
                 # Get the best audio stream
                 audio_stream = yt.streams.filter(only_audio=True, mime_type='audio/mp4').first()
                 if video_stream and audio_stream and self.is_downloading:
-                    print("--高分辨率下载--")
+                    self.root.title("YouTube Downloader - 开始下载高清视频")
                     video_filename = video_stream.download(output_path=self.download_path, filename_prefix="video_")
                     audio_filename = audio_stream.download(output_path=self.download_path, filename_prefix="audio_")
                     output_filename = self.clean_filename(yt.title) + ".mp4"
@@ -339,8 +319,7 @@ class YouTubeDownloader:
             self.is_downloading = False
             self.button_cancel.config(state='disabled')
             # self.root.title("YouTube Downloader")
-            # 下载完成后打开下载文件夹
-            self.open_download_folder()
+
             # 重置下载功能
             self.progress['value'] = 0
             self.progress_label['text'] = "0%"
@@ -357,7 +336,7 @@ class YouTubeDownloader:
         
         # Load the converted audio file
         audio_clip = AudioFileClip(audio_filename)
-        
+
         # Set the audio of the video clip to the audio clip
         final_clip = video_clip.set_audio(audio_clip)
         

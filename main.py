@@ -331,6 +331,7 @@ class YouTubeDownloader:
 
 
     def merge_video_audio(self, video_filename, audio_filename, output_filename):
+        self.root.title(f"YouTube Downloader - 开始合并视频")
         # Load the video file (without audio)
         video_clip = VideoFileClip(video_filename)
         

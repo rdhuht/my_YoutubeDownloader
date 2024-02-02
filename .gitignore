@@ -4,3 +4,4 @@
 *.spec
 /.vscode
 ffmpeg/ffmpeg
+.DS_Store

@@ -1,7 +1,6 @@
 /.venv
 /build
 /dist
-*.spec
 /.vscode
 ffmpeg/ffmpeg
 .DS_Store

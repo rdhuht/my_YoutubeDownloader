@@ -139,7 +139,6 @@ class YouTubeDownloader:
             return os.path.join(os.path.dirname(__file__), 'ffmpeg', ffmpeg_exe)
 
 
-
     def xml2srt(self, text):
         # Ensure using 'lxml' as the parser for XML documents
         soup = BeautifulSoup(text, 'lxml')
@@ -399,7 +398,6 @@ class YouTubeDownloader:
             os.remove(audio_path)  # 删除原始音频文件
         except subprocess.CalledProcessError as e:
             messagebox.showerror("合并错误", f"合并视频和音频时出错: {e}")
-
 
 
 if __name__ == "__main__":

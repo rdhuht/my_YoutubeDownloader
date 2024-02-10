@@ -5,7 +5,7 @@ a = Analysis(
     ['main.py'],
     pathex=['.venv/lib/python3.12/site-packages'],
     binaries=[],
-    datas=[('ffmpeg/ffmpeg', '.')],
+    datas=[],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -34,10 +34,11 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=['imgs/logo.icns'],
 )
 app = BUNDLE(
     exe,
     name='youtubedownloader.app',
-    icon=None,
+    icon='imgs/logo.icns',
     bundle_identifier=None,
 )

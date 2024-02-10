@@ -18,12 +18,33 @@ import subprocess
 from bs4 import BeautifulSoup
 from pytube.exceptions import PytubeError
 
+class PlaceholderEntry(ttk.Entry):
+    def __init__(self, container, placeholder, *args, **kwargs):
+        super().__init__(container, *args, **kwargs)
+        self.placeholder = placeholder
+        self.placeholder_color = 'grey'
+        self.default_fg_color = self['foreground']
+
+        self.bind("<FocusIn>", self._focus_in)
+        self.bind("<FocusOut>", self._focus_out)
+
+        self._focus_out(None)
+
+    def _focus_in(self, event):
+        if self['foreground'] == self.placeholder_color:
+            self.delete(0, "end")
+            self['foreground'] = self.default_fg_color
+
+    def _focus_out(self, event):
+        if not self.get():
+            self.insert(0, self.placeholder)
+            self['foreground'] = self.placeholder_color
 
 class YouTubeDownloader:
     def __init__(self, root):
         self.root = root
         self.root.title("YouTube Downloader")
-        self.root.minsize(width=600, height=350)  # 减少窗口的最小高度以使布局更紧凑
+        self.root.minsize(width=600, height=200)  # 减少窗口的最小高度以使布局更紧凑
         self.streams_map = {}  # 新增属性来存储清晰度和文件大小的映射
         self.is_downloading = False  # 新增属性来标记是否正在下载
         self.download_start_time = None
@@ -33,48 +54,54 @@ class YouTubeDownloader:
         middle_font = tkFont.Font(family="阿里巴巴普惠体 3.0 75 SemiBold", size=18)
         small_font = tkFont.Font(family="阿里巴巴普惠体 3.0 75 SemiBold", size=16)
 
-        # 视频链接输入框
-        self.label_url = ttk.Label(root, text="YouTube视频链接", font=small_font)
-        self.label_url.pack(pady=(10))
-        self.entry_url = ttk.Entry(root)
-        self.entry_url.pack(fill='x', expand=True, padx=20, pady=(2, 10))
+        # 创建一个新的 Frame 用于容纳视频链接 Label 和加载按钮
+        self.top_frame = ttk.Frame(root)
+        self.top_frame.pack(fill='x', padx=10, pady=5)
+
+        # 链接输入框
+        self.entry_url = PlaceholderEntry(self.top_frame, "在这里输入视频链接")
+        self.entry_url.pack(fill='x', expand=True, padx=10, pady=10, side=tk.LEFT)
 
         # 加载视频信息按钮
-        self.button_load = ttk.Button(root, text="加载视频信息", command=self.start_parse_video_thread, bootstyle='success')
-        self.button_load.pack(pady=(0, 5))
+        self.button_load = ttk.Button(self.top_frame, text="解析链接", command=self.start_parse_video_thread, bootstyle='success')
+        self.button_load.pack(side=tk.RIGHT)
 
         # 显示视频标题
-        self.video_title_label = ttk.Label(root, text="")
-        self.video_title_label.pack(pady=(5, 5))
+        self.video_title_label = ttk.Label(root, text="视频标题", foreground='gray')
+        self.video_title_label.pack(padx=10, pady=(0, 5))  # 紧接着 top_frame 下方放置
 
         # 视频清晰度和字幕选择框架
         self.quality_frame = ttk.Frame(root)
-        self.quality_frame.pack(pady=(0, 5))
+        self.quality_frame.pack(padx=5, pady=10)
         self.quality_label = ttk.Label(self.quality_frame, text="清晰度:", font=small_font)
-        self.quality_label.pack(side=tk.LEFT, padx=(10, 2))
+        self.quality_label.pack(side=tk.LEFT, padx=10)
         self.quality_combobox = ttk.Combobox(self.quality_frame, state="readonly", width=15)
-        self.quality_combobox.pack(side=tk.LEFT, padx=(2, 10))
+        self.quality_combobox.pack(side=tk.LEFT, padx=5)
         self.caption_label = ttk.Label(self.quality_frame, text="字幕:", font=small_font)
-        self.caption_label.pack(side=tk.LEFT, padx=(10, 2))
+        self.caption_label.pack(side=tk.LEFT, padx=5)
         self.caption_combobox = ttk.Combobox(self.quality_frame, state="readonly", width=25)
-        self.caption_combobox.pack(side=tk.LEFT, padx=(2, 10))
+        self.caption_combobox.pack(side=tk.LEFT, padx=5)
 
         # 下载路径选择和开始下载按钮
         self.button_frame = ttk.Frame(root)
-        self.button_frame.pack(pady=(0, 5))
-        self.button_browse = ttk.Button(self.button_frame, text="选择下载路径", command=self.browse_path, bootstyle='info')
+        self.button_frame.pack(pady=5)
+        self.button_browse = ttk.Button(self.button_frame, text="下载路径", command=self.browse_path, bootstyle='info')
         self.button_browse.pack(side=tk.LEFT, padx=(10, 5))
-        self.button_download = ttk.Button(self.button_frame, text="下载视频", command=self.start_download_thread, bootstyle='danger')
+        self.button_download = ttk.Button(self.button_frame, text="开始下载", command=self.start_download_thread, bootstyle='danger')
         self.button_download.pack(side=tk.LEFT, padx=(5, 10))
         self.button_cancel = ttk.Button(self.button_frame, text="取消下载", command=self.cancel_download, bootstyle='warning')
         self.button_cancel.pack(side=tk.LEFT, padx=(5, 10))
         self.button_cancel.config(state='disabled')  # 初始状态为禁用
 
+        # 创建一个新的 Frame 用于容纳视频链接 Label 和加载按钮
+        self.bottom_frame = ttk.Frame(root)
+        self.bottom_frame.pack(fill='x', padx=20, pady=5)
+
         # 进度条和进度百分比
-        self.progress_label = ttk.Label(root, text="0%", font=small_font)
-        self.progress_label.pack(pady=(5, 2))
-        self.progress = ttk.Progressbar(root, bootstyle="success-striped", orient='horizontal', mode='determinate')
-        self.progress.pack(fill='x', expand=True, padx=20, pady=(2, 10))
+        self.progress = ttk.Progressbar(self.bottom_frame, bootstyle="success-striped", orient='horizontal', mode='determinate')
+        self.progress.pack(fill='both', expand=True, side=tk.LEFT)
+        self.progress_label = ttk.Label(self.bottom_frame, text="0%", font=small_font)
+        self.progress_label.pack(padx=8, pady=5)
 
         self.download_path = ""  # 用于存储下载路径
 
@@ -239,6 +266,7 @@ class YouTubeDownloader:
         url = self.entry_url.get()
         try:
             yt = YouTube(url)
+            self.video_title_label.config(foreground='black')
             self.video_title_label['text'] = yt.title  # 显示视频标题
 
             streams = yt.streams.filter(progressive=False, file_extension='mp4').order_by('resolution')

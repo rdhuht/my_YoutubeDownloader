@@ -99,7 +99,7 @@ class YouTubeDownloader:
 
         # 进度条和进度百分比
         self.progress = ttk.Progressbar(self.bottom_frame, bootstyle="success-striped", orient='horizontal', mode='determinate')
-        self.progress.pack(fill='both', expand=True, side=tk.LEFT)
+        self.progress.pack(fill='x', expand=True, side=tk.LEFT)
         self.progress_label = ttk.Label(self.bottom_frame, text="0%", font=small_font)
         self.progress_label.pack(padx=8, pady=5)
 

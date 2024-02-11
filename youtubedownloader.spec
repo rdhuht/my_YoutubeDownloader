@@ -4,7 +4,7 @@
 a = Analysis(
     ['main.py'],
     pathex=['.venv/lib/python3.12/site-packages'],
-    binaries=[],
+    binaries=[('ffmpeg/ffmpeg', '.')],
     datas=[],
     hiddenimports=[],
     hookspath=[],

@@ -168,7 +168,7 @@ class YouTubeDownloader:
 
     def xml2srt(self, text):
         # Ensure using 'lxml' as the parser for XML documents
-        soup = BeautifulSoup(text, 'lxml')
+        soup = BeautifulSoup(text, 'lxml-xml')
         ps = soup.findAll('p')
         output = ''
         num = 0

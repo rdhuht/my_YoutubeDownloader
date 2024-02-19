@@ -3,4 +3,5 @@
 /dist
 /.vscode
 ffmpeg/ffmpeg
+ffmpeg/ffmpeg.exe
 .DS_Store

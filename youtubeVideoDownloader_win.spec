@@ -3,7 +3,7 @@
 
 a = Analysis(
     ['main.py'],
-    pathex=['E:\\Users\\10833\\Documents\\githubRps\\my_YoutubeDownloader\\.venv\\Lib\\site-packages', 'C:\\Users\\10833\\AppData\\Local\\Microsoft\\Windows\\Fonts\\AlibabaPuHuiTi-3-75-SemiBold.ttf'],
+    pathex=['.venv\Lib\site-packages', 'C:\\Users\\10833\\AppData\\Local\\Microsoft\\Windows\\Fonts\\AlibabaPuHuiTi-3-75-SemiBold.ttf'],
     binaries=[],
     datas=[('ffmpeg/ffmpeg.exe', '.')],
     hiddenimports=[],

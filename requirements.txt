@@ -6,7 +6,7 @@ macholib==1.16.3
 packaging==23.2
 pillow==10.2.0
 pyinstaller-hooks-contrib==2024.0
-pytube==15.0.0
+pytube
 setuptools==69.0.3
 soupsieve==2.5
 ttkbootstrap==1.10.1

@@ -9,4 +9,5 @@ pyinstaller-hooks-contrib
 setuptools
 soupsieve
 ttkbootstrap
-pytube
+# pytube
+yt_dlp

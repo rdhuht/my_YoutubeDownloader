@@ -14,7 +14,6 @@ import threading
 import tkinter.simpledialog as sd
 import tkinter.messagebox as mb
 import tkinter.font as tkFont
-import subprocess
 from bs4 import BeautifulSoup
 from pytube.exceptions import PytubeError
 

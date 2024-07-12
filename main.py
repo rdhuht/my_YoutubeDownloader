@@ -173,6 +173,7 @@ class YouTubeDownloader:
             }
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info_dict = ydl.extract_info(url, download=False)
+
                 title = info_dict.get('title', 'Video')
                 formats = info_dict.get('formats', [])
                 self.video_title_label['text'] = f"Video Title: {title}"
@@ -182,8 +183,9 @@ class YouTubeDownloader:
                     if fmt.get('height'):
                         qualities.append(f"{fmt['format_id']} - {fmt['height']}p")
 
+                print(qualities)
                 subtitles = info_dict.get('subtitles', {})
-
+                print(subtitles)
                 self.quality_combobox['values'] = qualities
                 if qualities:
                     self.quality_combobox.current(0)

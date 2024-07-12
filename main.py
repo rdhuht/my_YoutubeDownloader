@@ -249,9 +249,13 @@ class YouTubeDownloader:
         self.download_start_time = time.time()
 
         ydl_opts = {
-            'format': selected_format,  # 使用选择的格式 ID
+            'format': f"{selected_format}+bestaudio/best",  # 确保包含音频
             'outtmpl': os.path.join(self.download_path, '%(title)s.%(ext)s'),
             'progress_hooks': [self.show_progress],
+            'postprocessors': [{
+                'key': 'FFmpegVideoConvertor',
+                'preferedformat': 'mp4',  # 确保输出格式为 mp4
+            }],
         }
 
         if selected_subtitle:

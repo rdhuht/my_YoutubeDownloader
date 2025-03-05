@@ -4,7 +4,7 @@
 ## English
 
 ### Description
-This YouTube Downloader is a Python-based GUI application that allows users to download YouTube videos in various resolutions and optionally with subtitles. It utilizes the `pytube` library for downloading videos and `ffmpeg` for processing videos that require merging separate audio and video streams.
+This YouTube Downloader is a Python-based GUI application that allows users to download YouTube videos in various resolutions and optionally with subtitles. It utilizes the `yt-dlp` library for downloading videos and `ffmpeg` for processing videos that require merging separate audio and video streams.
 
 ### Features
 - Download videos in various resolutions.
@@ -45,7 +45,7 @@ This tool is for educational and research purposes only, do not use it for any i
 ## 中文
 
 ### 描述
-这个YouTube视频下载器是一个基于Python的GUI应用程序，允许用户下载各种分辨率的YouTube视频，并可选下载字幕。它使用了`pytube`库来下载视频，以及`ffmpeg`来处理需要合并音频和视频流的视频。
+这个YouTube视频下载器是一个基于Python的GUI应用程序，允许用户下载各种分辨率的YouTube视频，并可选下载字幕。它使用了`yt-dlp`库来下载视频，以及`ffmpeg`来处理需要合并音频和视频流的视频。
 
 ### 特点
 - 支持下载不同分辨率的视频。

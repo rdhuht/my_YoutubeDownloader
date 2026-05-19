@@ -10,6 +10,17 @@ import threading
 import tkinter.font as tkFont
 import yt_dlp as youtube_dl
 
+# 检查ffmpeg是否可用
+def check_ffmpeg():
+    try:
+        result = subprocess.run(['ffmpeg', '-version'], capture_output=True, text=True, timeout=5)
+        return result.returncode == 0
+    except:
+        return False
+
+FFMPEG_AVAILABLE = check_ffmpeg()
+print(f"FFmpeg available: {FFMPEG_AVAILABLE}")
+
 # 定义带有占位符文本的输入框类
 class PlaceholderEntry(ttk.Entry):
     def __init__(self, container, placeholder, *args, **kwargs):
@@ -98,7 +109,9 @@ class YouTubeDownloader:
         self.progress_label = ttk.Label(self.bottom_frame, text="0%", font=small_font)
         self.progress_label.pack(padx=8, pady=5)
 
-        self.download_path = ""
+        self.download_path = os.path.join(os.path.expanduser('~'), 'Desktop')
+        self.entry_url['foreground'] = 'grey'
+        self.entry_url.insert(0, "在此输入视频URL")
 
         self.center_window(self.root)
 
@@ -195,13 +208,40 @@ class YouTubeDownloader:
                 self.video_title_label['text'] = f"视频标题: {title}"
 
                 qualities = []
+                format_map = {}  # 存储 quality_text -> format_id 的映射
                 for fmt in self.formats:
-                    if fmt.get('ext') == 'mp4' and fmt.get('filesize'):
-                        quality_text = f"{fmt['height']}p - {fmt['filesize'] / 1024 / 1024:.2f} MB"
-                        qualities.append(quality_text)
+                    # 筛选mp4格式的视频（不严格要求filesize存在）
+                    if fmt.get('ext') == 'mp4' and fmt.get('height'):
+                        height = fmt.get('height')
+                        filesize = fmt.get('filesize')
+                        format_id = fmt.get('format_id')
 
-                self.quality_combobox['values'] = qualities
-                if qualities:
+                        # 计算预估文件大小
+                        if filesize:
+                            size_str = f"{filesize / 1024 / 1024:.2f} MB"
+                        else:
+                            # 预估大小基于分辨率（粗略估算）
+                            est_size = height * height * 10 / 8  # 粗略估算
+                            if est_size > 1024:
+                                size_str = f"~{est_size / 1024:.1f} GB"
+                            else:
+                                size_str = f"~{est_size:.0f} MB"
+
+                        quality_text = f"{height}p - {size_str}"
+                        qualities.append(quality_text)
+                        format_map[quality_text] = format_id
+
+                # 去重并保持顺序
+                seen = set()
+                unique_qualities = []
+                for q in qualities:
+                    if q not in seen:
+                        seen.add(q)
+                        unique_qualities.append(q)
+
+                self.quality_combobox['values'] = unique_qualities
+                self.format_map = format_map  # 保存映射供下载时使用
+                if unique_qualities:
                     self.quality_combobox.current(0)
 
                 subtitles = info_dict.get('subtitles', {})
@@ -230,14 +270,8 @@ class YouTubeDownloader:
             self.enable_buttons()
             return
 
-        selected_format = None
-        for fmt in self.formats:  # 使用存储的formats
-            if fmt.get('ext') == 'mp4' and fmt.get('filesize'):
-                quality_opt = f"{fmt['height']}p - {fmt['filesize'] / 1024 / 1024:.2f} MB"
-                if quality_text == quality_opt:
-                    selected_format = fmt['format_id']
-                    break
-
+        # 使用保存的format_map获取format_id
+        selected_format = self.format_map.get(quality_text)
         if not selected_format:
             messagebox.showerror("错误", "未能找到匹配的格式。")
             self.enable_buttons()
@@ -247,16 +281,23 @@ class YouTubeDownloader:
 
         self.is_downloading = True
         self.download_start_time = time.time()
+        self.button_cancel.config(state='normal')
 
         ydl_opts = {
             'format': f"{selected_format}+bestaudio/best",  # 确保包含音频
             'outtmpl': os.path.join(self.download_path, '%(title)s.%(ext)s'),
             'progress_hooks': [self.show_progress],
-            'postprocessors': [{
-                'key': 'FFmpegVideoConvertor',
-                'preferedformat': 'mp4',  # 确保输出格式为 mp4
-            }],
         }
+
+        # 只有在ffmpeg可用时才添加后处理器
+        if FFMPEG_AVAILABLE:
+            ydl_opts['postprocessors'] = [{
+                'key': 'FFmpegVideoConvertor',
+                'preferedformat': 'mp4',
+            }]
+        else:
+            # 如果没有ffmpeg，尝试直接下载mp4格式
+            ydl_opts['format'] = f"{selected_format}/best"
 
         if selected_subtitle:
             ydl_opts['subtitleslangs'] = [selected_subtitle]
@@ -278,6 +319,7 @@ class YouTubeDownloader:
             self.is_downloading = False
             self.enable_buttons()
             self.download_start_time = None
+            self.button_cancel.config(state='disabled')
 
 
 # 主程序入口

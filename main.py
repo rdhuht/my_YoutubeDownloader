@@ -21,15 +21,8 @@ def check_ffmpeg():
 FFMPEG_AVAILABLE = check_ffmpeg()
 print(f"FFmpeg available: {FFMPEG_AVAILABLE}")
 
-# 检查代理设置
-def check_proxy():
-    proxy = os.environ.get('http_proxy') or os.environ.get('https_proxy')
-    if proxy:
-        print(f"Proxy detected: {proxy}")
-        return proxy
-    return None
-
-PROXY = check_proxy()
+# 用户代理配置
+USER_PROXY = None
 
 # 定义带有占位符文本的输入框类
 class PlaceholderEntry(ttk.Entry):
@@ -98,6 +91,14 @@ class YouTubeDownloader:
         self.caption_combobox = ttk.Combobox(self.quality_frame, state="readonly", width=25)
         self.caption_combobox.pack(side=tk.LEFT, padx=5)
 
+        # 音轨选择框架
+        self.audio_frame = ttk.Frame(root)
+        self.audio_frame.pack(padx=5, pady=(0, 10))
+        self.audio_label = ttk.Label(self.audio_frame, text="音轨:", font=small_font)
+        self.audio_label.pack(side=tk.LEFT, padx=10)
+        self.audio_combobox = ttk.Combobox(self.audio_frame, state="readonly", width=25)
+        self.audio_combobox.pack(side=tk.LEFT, padx=5)
+
         # 按钮框架
         self.button_frame = ttk.Frame(root)
         self.button_frame.pack(pady=5)
@@ -123,7 +124,51 @@ class YouTubeDownloader:
         self.entry_url['foreground'] = 'grey'
         self.entry_url.insert(0, "在此输入视频URL")
 
+        # 创建菜单栏
+        self.create_menu_bar()
+
         self.center_window(self.root)
+
+    # 创建菜单栏
+    def create_menu_bar(self):
+        menubar = tk.Menu(self.root)
+        self.root.config(menu=menubar)
+
+        # 设置菜单
+        settings_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="设置", menu=settings_menu)
+        settings_menu.add_command(label="代理设置", command=self.show_proxy_dialog)
+        settings_menu.add_separator()
+        settings_menu.add_command(label="关于", command=self.show_about)
+
+    # 代理设置对话框
+    def show_proxy_dialog(self):
+        dialog = tk.Toplevel(self.root)
+        dialog.title("代理设置")
+        dialog.geometry("400x120")
+        dialog.transient(self.root)
+        dialog.grab_set()
+
+        # 让对话框居中
+        dialog.geometry(f"+{self.root.winfo_x() + 100}+{self.root.winfo_y() + 100}")
+
+        ttk.Label(dialog, text="代理地址 (例如: http://127.0.0.1:7890):").pack(pady=(15, 5), padx=10)
+        proxy_entry = ttk.Entry(dialog, width=50)
+        proxy_entry.pack(pady=5, padx=10)
+        if USER_PROXY:
+            proxy_entry.insert(0, USER_PROXY)
+
+        def save_proxy():
+            global USER_PROXY
+            proxy_value = proxy_entry.get().strip()
+            USER_PROXY = proxy_value if proxy_value else None
+            dialog.destroy()
+
+        ttk.Button(dialog, text="保存", command=save_proxy).pack(pady=10)
+
+    # 关于对话框
+    def show_about(self):
+        messagebox.showinfo("关于", "YouTube 下载器 v2.0\n\n支持代理设置和多音轨视频下载")
 
     # 将窗口居中显示
     def center_window(self, window):
@@ -211,6 +256,9 @@ class YouTubeDownloader:
                 'skip_download': True,
                 'noplaylist': True,
             }
+            if USER_PROXY:
+                ydl_opts['proxy'] = USER_PROXY
+
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
                 info_dict = ydl.extract_info(url, download=False)
 
@@ -260,6 +308,37 @@ class YouTubeDownloader:
                 if subtitles:
                     self.caption_combobox.current(0)
 
+                # 获取音轨信息
+                self.audio_tracks = []
+                audio_track_map = {}
+                formats = info_dict.get('formats', [])
+
+                # 收集所有唯一的音轨
+                seen_audio = {}
+                for fmt in formats:
+                    # 检查是否有音频轨道信息
+                    acodec = fmt.get('acodec', '')
+                    if acodec and acodec != 'none':
+                        lang = fmt.get('language') or fmt.get('lang') or 'unknown'
+                        if isinstance(lang, dict):
+                            lang = lang.get('language') or 'unknown'
+
+                        # 创建唯一键
+                        audio_key = f"{lang} - {acodec}"
+                        if audio_key not in seen_audio:
+                            seen_audio[audio_key] = True
+                            format_id = fmt.get('format_id')
+                            self.audio_tracks.append(audio_key)
+                            audio_track_map[audio_key] = format_id
+
+                self.audio_combobox['values'] = self.audio_tracks
+                self.audio_track_map = audio_track_map
+                if self.audio_tracks:
+                    self.audio_combobox.current(0)
+                    self.selected_audio_track = self.audio_tracks[0]
+                else:
+                    self.selected_audio_track = None
+
                 self.root.title(f"YouTube 下载器 - 视频已加载: {title}")
         except Exception as e:
             messagebox.showerror("加载视频错误", f"错误: {e}")
@@ -294,11 +373,28 @@ class YouTubeDownloader:
         self.download_start_time = time.time()
         self.button_cancel.config(state='normal')
 
+        # 获取选中的音轨
+        audio_track = self.audio_combobox.get()
+        selected_audio_format = self.audio_track_map.get(audio_track) if audio_track else None
+
+        # 构建格式选择字符串
+        if selected_audio_format and selected_format:
+            # 使用选定的视频格式和音频格式
+            format_str = f"{selected_format}+{selected_audio_format}"
+        elif selected_format:
+            format_str = f"{selected_format}+bestaudio/best"
+        else:
+            format_str = "bestvideo+bestaudio/best"
+
         ydl_opts = {
-            'format': f"{selected_format}+bestaudio/best",  # 确保包含音频
+            'format': format_str,
             'outtmpl': os.path.join(self.download_path, '%(title)s.%(ext)s'),
             'progress_hooks': [self.show_progress],
         }
+
+        # 添加代理设置
+        if USER_PROXY:
+            ydl_opts['proxy'] = USER_PROXY
 
         # 只有在ffmpeg可用时才添加后处理器
         if FFMPEG_AVAILABLE:

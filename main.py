@@ -163,8 +163,15 @@ class YouTubeDownloader:
             proxy_value = proxy_entry.get().strip()
             USER_PROXY = proxy_value if proxy_value else None
             dialog.destroy()
+            if USER_PROXY:
+                messagebox.showinfo("代理设置", f"代理已设置为: {USER_PROXY}")
+            else:
+                messagebox.showinfo("代理设置", "代理已清除")
 
-        ttk.Button(dialog, text="保存", command=save_proxy).pack(pady=10)
+        btn_frame = ttk.Frame(dialog)
+        btn_frame.pack(pady=10)
+        ttk.Button(btn_frame, text="保存", command=save_proxy).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="取消", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
 
     # 关于对话框
     def show_about(self):

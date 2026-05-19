@@ -32,34 +32,12 @@ YOUTUBE_URL_PATTERN = re.compile(r'(https?://)?(www\.)?(youtube\.com|youtu\.be)/
 def get_url_from_clipboard(root):
     try:
         clipboard_text = root.clipboard_get()
-        if clipboard_text and YOUTUBE_URL_PATTERN.match(clipboard_text.strip()):
-            return clipboard_text.strip()
+        url = clipboard_text.strip()
+        if url and YOUTUBE_URL_PATTERN.match(url):
+            return url
     except:
         pass
     return None
-
-# 定义带有占位符文本的输入框类
-class PlaceholderEntry(ttk.Entry):
-    def __init__(self, container, placeholder, *args, **kwargs):
-        super().__init__(container, *args, **kwargs)
-        self.placeholder = placeholder
-        self.placeholder_color = 'grey'
-        self.default_fg_color = self['foreground']
-
-        self.bind("<FocusIn>", self._focus_in)
-        self.bind("<FocusOut>", self._focus_out)
-
-        self._focus_out(None)
-
-    def _focus_in(self, event):
-        if self['foreground'] == self.placeholder_color:
-            self.delete(0, "end")
-            self['foreground'] = self.default_fg_color
-
-    def _focus_out(self, event):
-        if not self.get():
-            self.insert(0, self.placeholder)
-            self['foreground'] = self.placeholder_color
 
 # 定义主应用程序类
 class YouTubeDownloader:

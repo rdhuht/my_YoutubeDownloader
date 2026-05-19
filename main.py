@@ -8,6 +8,7 @@ import ttkbootstrap as ttk
 from ttkbootstrap import Style
 import threading
 import tkinter.font as tkFont
+import re
 import yt_dlp as youtube_dl
 
 # 检查ffmpeg是否可用
@@ -23,6 +24,19 @@ print(f"FFmpeg available: {FFMPEG_AVAILABLE}")
 
 # 用户代理配置 - 默认使用本地代理
 USER_PROXY = "http://127.0.0.1:7897"
+
+# YouTube URL 正则表达式
+YOUTUBE_URL_PATTERN = re.compile(r'(https?://)?(www\.)?(youtube\.com|youtu\.be)/.+$')
+
+# 从剪贴板获取URL
+def get_url_from_clipboard(root):
+    try:
+        clipboard_text = root.clipboard_get()
+        if clipboard_text and YOUTUBE_URL_PATTERN.match(clipboard_text.strip()):
+            return clipboard_text.strip()
+    except:
+        pass
+    return None
 
 # 定义带有占位符文本的输入框类
 class PlaceholderEntry(ttk.Entry):
@@ -66,8 +80,14 @@ class YouTubeDownloader:
         self.top_frame.pack(fill='x', padx=10, pady=5)
 
         # 输入视频URL的文本框
-        self.entry_url = PlaceholderEntry(self.top_frame, "在此输入视频URL")
+        self.entry_url = ttk.Entry(self.top_frame)
         self.entry_url.pack(fill='x', expand=True, padx=10, pady=10, side=tk.LEFT)
+
+        # 检查剪贴板是否有URL
+        clipboard_url = get_url_from_clipboard(root)
+        if clipboard_url:
+            self.entry_url.insert(0, clipboard_url)
+            self.root.title(f"YouTube 下载器 - 已从剪贴板获取URL")
 
         # 加载视频信息的按钮
         self.button_load = ttk.Button(self.top_frame, text="加载视频信息", command=self.start_parse_video_thread, bootstyle='success')
@@ -322,18 +342,22 @@ class YouTubeDownloader:
                 # 收集所有唯一的音轨
                 seen_audio = {}
                 for fmt in formats:
-                    # 检查是否有音频轨道信息
                     acodec = fmt.get('acodec', '')
                     if acodec and acodec != 'none':
                         lang = fmt.get('language') or fmt.get('lang') or 'unknown'
                         if isinstance(lang, dict):
                             lang = lang.get('language') or 'unknown'
 
-                        # 创建唯一键
-                        audio_key = f"{lang} - {acodec}"
+                        format_note = fmt.get('format_note', '')
+                        format_id = fmt.get('format_id')
+
+                        # 创建唯一键：语言 + 格式备注
+                        audio_key = f"{lang} {format_note}".strip()
+                        if not audio_key or audio_key == lang:
+                            audio_key = f"{lang}"
+
                         if audio_key not in seen_audio:
                             seen_audio[audio_key] = True
-                            format_id = fmt.get('format_id')
                             self.audio_tracks.append(audio_key)
                             audio_track_map[audio_key] = format_id
 

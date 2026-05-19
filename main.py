@@ -21,8 +21,8 @@ def check_ffmpeg():
 FFMPEG_AVAILABLE = check_ffmpeg()
 print(f"FFmpeg available: {FFMPEG_AVAILABLE}")
 
-# 用户代理配置
-USER_PROXY = None
+# 用户代理配置 - 默认使用本地代理
+USER_PROXY = "http://127.0.0.1:7897"
 
 # 定义带有占位符文本的输入框类
 class PlaceholderEntry(ttk.Entry):
@@ -155,8 +155,7 @@ class YouTubeDownloader:
         ttk.Label(dialog, text="代理地址 (例如: http://127.0.0.1:7897):").pack(pady=(15, 5), padx=10)
         proxy_entry = ttk.Entry(dialog, width=50)
         proxy_entry.pack(pady=5, padx=10)
-        if USER_PROXY:
-            proxy_entry.insert(0, USER_PROXY)
+        proxy_entry.insert(0, USER_PROXY if USER_PROXY else "")
 
         def save_proxy():
             global USER_PROXY

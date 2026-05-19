@@ -111,8 +111,6 @@ class YouTubeDownloader:
         self.progress_label.pack(padx=8, pady=5)
 
         self.download_path = os.path.join(os.path.expanduser('~'), 'Desktop')
-        self.entry_url['foreground'] = 'grey'
-        self.entry_url.insert(0, "在此输入视频URL")
 
         # 创建菜单栏
         self.create_menu_bar()
@@ -242,7 +240,7 @@ class YouTubeDownloader:
     # 加载视频信息
     def load_video_msg(self):
         url = self.entry_url.get().strip()
-        if not url or url == "在此输入视频URL":
+        if not url:
             messagebox.showerror("错误", "请输入有效的视频URL。")
             self.enable_buttons()
             return
@@ -314,7 +312,7 @@ class YouTubeDownloader:
     # 下载视频
     def download_video(self):
         url = self.entry_url.get().strip()
-        if not url or url == "在此输入视频URL":
+        if not url:
             messagebox.showerror("错误", "请输入有效的视频URL。")
             self.enable_buttons()
             return

@@ -21,6 +21,16 @@ def check_ffmpeg():
 FFMPEG_AVAILABLE = check_ffmpeg()
 print(f"FFmpeg available: {FFMPEG_AVAILABLE}")
 
+# 检查代理设置
+def check_proxy():
+    proxy = os.environ.get('http_proxy') or os.environ.get('https_proxy')
+    if proxy:
+        print(f"Proxy detected: {proxy}")
+        return proxy
+    return None
+
+PROXY = check_proxy()
+
 # 定义带有占位符文本的输入框类
 class PlaceholderEntry(ttk.Entry):
     def __init__(self, container, placeholder, *args, **kwargs):
@@ -135,11 +145,12 @@ class YouTubeDownloader:
     # 显示下载进度
     def show_progress(self, d):
         if d['status'] == 'downloading':
-            downloaded = d.get('downloaded_bytes', 0)
-            total = d.get('total_bytes', 1)
-            percentage = downloaded / total * 100
-            self.progress['value'] = percentage
-            self.progress_label['text'] = f"{percentage:.2f}%"
+            downloaded = d.get('downloaded_bytes', 0) or 0
+            total = d.get('total_bytes') or d.get('totalbyte') or 1
+            if total and total > 0:
+                percentage = downloaded / total * 100
+                self.progress['value'] = percentage
+                self.progress_label['text'] = f"{percentage:.2f}%"
             self.root.update_idletasks()
             if self.download_start_time:
                 elapsed_time = time.time() - self.download_start_time

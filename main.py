@@ -60,8 +60,22 @@ class YouTubeDownloader:
         # 输入视频URL的文本框
         self.entry_url = ttk.Entry(self.top_frame)
         self.entry_url.pack(fill='x', expand=True, padx=10, pady=10, side=tk.LEFT)
+        # 点击输入框时检查剪贴板
+        self.entry_url.bind('<FocusIn>', self.on_entry_focus)
+        self.entry_url.bind('<Button-1>', self.on_entry_click)
 
-        # 检查剪贴板是否有URL
+    # 输入框获得焦点或点击时检查剪贴板
+    def on_entry_focus(self, event):
+        clipboard_url = get_url_from_clipboard(self.root)
+        if clipboard_url and not self.entry_url.get().strip():
+            self.entry_url.delete(0, tk.END)
+            self.entry_url.insert(0, clipboard_url)
+            self.root.title(f"YouTube 下载器 - 已从剪贴板获取URL")
+
+    def on_entry_click(self, event):
+        self.on_entry_focus(event)
+
+        # 检查剪贴板是否有URL（启动时）
         clipboard_url = get_url_from_clipboard(root)
         if clipboard_url:
             self.entry_url.insert(0, clipboard_url)

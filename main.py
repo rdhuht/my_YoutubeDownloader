@@ -105,19 +105,11 @@ class YouTubeDownloader:
         self.quality_combobox = ttk.Combobox(self.quality_frame, state="readonly", width=15)
         self.quality_combobox.pack(side=tk.LEFT, padx=5)
 
-        # 字幕选择框架
-        self.caption_label = ttk.Label(self.quality_frame, text="字幕:", font=small_font)
+        # 字幕/配音选择框架
+        self.caption_label = ttk.Label(self.quality_frame, text="字幕/配音:", font=small_font)
         self.caption_label.pack(side=tk.LEFT, padx=5)
         self.caption_combobox = ttk.Combobox(self.quality_frame, state="readonly", width=25)
         self.caption_combobox.pack(side=tk.LEFT, padx=5)
-
-        # 音轨选择框架
-        self.audio_frame = ttk.Frame(root)
-        self.audio_frame.pack(padx=5, pady=(0, 10))
-        self.audio_label = ttk.Label(self.audio_frame, text="音轨:", font=small_font)
-        self.audio_label.pack(side=tk.LEFT, padx=10)
-        self.audio_combobox = ttk.Combobox(self.audio_frame, state="readonly", width=25)
-        self.audio_combobox.pack(side=tk.LEFT, padx=5)
 
         # 按钮框架
         self.button_frame = ttk.Frame(root)
@@ -334,41 +326,6 @@ class YouTubeDownloader:
                 if subtitles:
                     self.caption_combobox.current(0)
 
-                # 获取音轨信息
-                self.audio_tracks = []
-                audio_track_map = {}
-                formats = info_dict.get('formats', [])
-
-                # 收集所有唯一的音轨
-                seen_audio = {}
-                for fmt in formats:
-                    acodec = fmt.get('acodec', '')
-                    if acodec and acodec != 'none':
-                        lang = fmt.get('language') or fmt.get('lang') or 'unknown'
-                        if isinstance(lang, dict):
-                            lang = lang.get('language') or 'unknown'
-
-                        format_note = fmt.get('format_note', '')
-                        format_id = fmt.get('format_id')
-
-                        # 创建唯一键：语言 + 格式备注
-                        audio_key = f"{lang} {format_note}".strip()
-                        if not audio_key or audio_key == lang:
-                            audio_key = f"{lang}"
-
-                        if audio_key not in seen_audio:
-                            seen_audio[audio_key] = True
-                            self.audio_tracks.append(audio_key)
-                            audio_track_map[audio_key] = format_id
-
-                self.audio_combobox['values'] = self.audio_tracks
-                self.audio_track_map = audio_track_map
-                if self.audio_tracks:
-                    self.audio_combobox.current(0)
-                    self.selected_audio_track = self.audio_tracks[0]
-                else:
-                    self.selected_audio_track = None
-
                 self.root.title(f"YouTube 下载器 - 视频已加载: {title}")
         except Exception as e:
             messagebox.showerror("加载视频错误", f"错误: {e}")
@@ -403,15 +360,8 @@ class YouTubeDownloader:
         self.download_start_time = time.time()
         self.button_cancel.config(state='normal')
 
-        # 获取选中的音轨
-        audio_track = self.audio_combobox.get()
-        selected_audio_format = self.audio_track_map.get(audio_track) if audio_track else None
-
         # 构建格式选择字符串
-        if selected_audio_format and selected_format:
-            # 使用选定的视频格式和音频格式
-            format_str = f"{selected_format}+{selected_audio_format}"
-        elif selected_format:
+        if selected_format:
             format_str = f"{selected_format}+bestaudio/best"
         else:
             format_str = "bestvideo+bestaudio/best"

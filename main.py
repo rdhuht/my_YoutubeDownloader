@@ -152,7 +152,7 @@ class YouTubeDownloader:
         # 让对话框居中
         dialog.geometry(f"+{self.root.winfo_x() + 100}+{self.root.winfo_y() + 100}")
 
-        ttk.Label(dialog, text="代理地址 (例如: http://127.0.0.1:7890):").pack(pady=(15, 5), padx=10)
+        ttk.Label(dialog, text="代理地址 (例如: http://127.0.0.1:7897):").pack(pady=(15, 5), padx=10)
         proxy_entry = ttk.Entry(dialog, width=50)
         proxy_entry.pack(pady=5, padx=10)
         if USER_PROXY:

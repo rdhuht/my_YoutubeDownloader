@@ -48,10 +48,20 @@ class YouTubeDownloader:
         self.is_downloading = False
         self.download_start_time = None
 
-        # 设置字体
-        large_font = tkFont.Font(family="Arial", size=20)
-        middle_font = tkFont.Font(family="Arial", size=18)
-        small_font = tkFont.Font(family="Arial", size=16)
+        # 设置字体（优先使用支持中文的字体）
+        try:
+            default_font = ("Microsoft YaHei", 10)
+        except:
+            default_font = ("Arial", 10)
+        large_font = tkFont.Font(family=default_font[0], size=20)
+        middle_font = tkFont.Font(family=default_font[0], size=18)
+        small_font = tkFont.Font(family=default_font[0], size=16)
+
+        # 设置 ttk 样式，使用支持中文的字体
+        style = ttk.Style()
+        style.configure('TButton', font=default_font)
+        style.configure('TLabel', font=default_font)
+        style.configure('TEntry', font=default_font)
 
         # 顶部框架
         self.top_frame = ttk.Frame(root)

@@ -27,7 +27,13 @@ jobs:
           pyinstaller --onefile --name "YouTubeDownloader" main.py
         shell: cmd
 
-      - name: Upload Windows Release Asset
+      - name: Show build output
+        run: |
+          echo "=== Build Output ==="
+          dir dist
+        shell: cmd
+
+      - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
           files: dist/YouTubeDownloader.exe
@@ -54,7 +60,12 @@ jobs:
         run: |
           pyinstaller --onefile --name "YouTubeDownloader" main.py
 
-      - name: Upload macOS Release Asset
+      - name: Show build output
+        run: |
+          echo "=== Build Output ==="
+          ls -la dist/
+
+      - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
           files: dist/YouTubeDownloader
@@ -81,7 +92,12 @@ jobs:
         run: |
           pyinstaller --onefile --name "YouTubeDownloader" main.py
 
-      - name: Upload Linux Release Asset
+      - name: Show build output
+        run: |
+          echo "=== Build Output ==="
+          ls -la dist/
+
+      - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
           files: dist/YouTubeDownloader

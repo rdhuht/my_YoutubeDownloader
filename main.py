@@ -50,18 +50,18 @@ class YouTubeDownloader:
 
         # 设置字体（优先使用支持中文的字体）
         try:
-            default_font = ("Microsoft YaHei", 10)
+            self.default_font = ("Microsoft YaHei", 10)
         except:
-            default_font = ("Arial", 10)
-        large_font = tkFont.Font(family=default_font[0], size=20)
-        middle_font = tkFont.Font(family=default_font[0], size=18)
-        small_font = tkFont.Font(family=default_font[0], size=16)
+            self.default_font = ("Arial", 10)
+        large_font = tkFont.Font(family=self.default_font[0], size=20)
+        middle_font = tkFont.Font(family=self.default_font[0], size=18)
+        small_font = tkFont.Font(family=self.default_font[0], size=16)
 
         # 设置 ttk 样式，使用支持中文的字体
         style = ttk.Style()
-        style.configure('TButton', font=default_font, foreground='#ffffff')
-        style.configure('TLabel', font=default_font)
-        style.configure('TEntry', font=default_font)
+        style.configure('TButton', font=self.default_font, foreground='#ffffff')
+        style.configure('TLabel', font=self.default_font)
+        style.configure('TEntry', font=self.default_font)
 
         # 顶部框架
         self.top_frame = ttk.Frame(root)
@@ -181,8 +181,8 @@ class YouTubeDownloader:
 
         btn_frame = ttk.Frame(dialog)
         btn_frame.pack(pady=10)
-        tk.Button(btn_frame, text="保存", command=save_proxy, bg="#0078d4", fg="white", relief="flat", font=default_font).pack(side=tk.LEFT, padx=5, pady=5, ipadx=10)
-        tk.Button(btn_frame, text="取消", command=dialog.destroy, bg="#5c5c5c", fg="white", relief="flat", font=default_font).pack(side=tk.LEFT, padx=5, pady=5, ipadx=10)
+        tk.Button(btn_frame, text="保存", command=save_proxy, bg="#0078d4", fg="white", relief="flat", font=self.default_font).pack(side=tk.LEFT, padx=5, pady=5, ipadx=10)
+        tk.Button(btn_frame, text="取消", command=dialog.destroy, bg="#5c5c5c", fg="white", relief="flat", font=self.default_font).pack(side=tk.LEFT, padx=5, pady=5, ipadx=10)
 
     # 关于对话框
     def show_about(self):

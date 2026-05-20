@@ -24,7 +24,7 @@ jobs:
 
       - name: Build with PyInstaller
         run: |
-          pyinstaller --onefile --name "YouTubeDownloader" --add-data ".;." main.py
+          pyinstaller --onefile --name "YouTubeDownloader" main.py
         shell: cmd
 
       - name: Upload Windows Release Asset

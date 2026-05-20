@@ -59,7 +59,7 @@ class YouTubeDownloader:
 
         # 设置 ttk 样式，使用支持中文的字体
         style = ttk.Style()
-        style.configure('TButton', font=default_font)
+        style.configure('TButton', font=default_font, foreground='#ffffff')
         style.configure('TLabel', font=default_font)
         style.configure('TEntry', font=default_font)
 
@@ -181,8 +181,8 @@ class YouTubeDownloader:
 
         btn_frame = ttk.Frame(dialog)
         btn_frame.pack(pady=10)
-        ttk.Button(btn_frame, text="保存", command=save_proxy).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text="取消", command=dialog.destroy).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="保存", command=save_proxy, bootstyle='primary').pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="取消", command=dialog.destroy, bootstyle='secondary').pack(side=tk.LEFT, padx=5)
 
     # 关于对话框
     def show_about(self):

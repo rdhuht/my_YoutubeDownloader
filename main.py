@@ -181,8 +181,8 @@ class YouTubeDownloader:
 
         btn_frame = ttk.Frame(dialog)
         btn_frame.pack(pady=10)
-        ttk.Button(btn_frame, text="保存", command=save_proxy, bootstyle='primary').pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text="取消", command=dialog.destroy, bootstyle='secondary').pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="保存", command=save_proxy, bg="#0078d4", fg="white", relief="flat", font=default_font).pack(side=tk.LEFT, padx=5, pady=5, ipadx=10)
+        tk.Button(btn_frame, text="取消", command=dialog.destroy, bg="#5c5c5c", fg="white", relief="flat", font=default_font).pack(side=tk.LEFT, padx=5, pady=5, ipadx=10)
 
     # 关于对话框
     def show_about(self):

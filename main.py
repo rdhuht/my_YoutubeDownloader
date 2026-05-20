@@ -211,9 +211,9 @@ class YouTubeDownloader:
     def show_progress(self, d):
         if d['status'] == 'downloading':
             downloaded = d.get('downloaded_bytes', 0) or 0
-            total = d.get('total_bytes') or d.get('totalbyte') or 1
+            total = d.get('total_bytes') or d.get('totalbyte') or 0
             if total and total > 0:
-                percentage = downloaded / total * 100
+                percentage = min(downloaded / total * 100, 100)
                 self.progress['value'] = percentage
                 self.progress_label['text'] = f"{percentage:.2f}%"
             self.root.update_idletasks()

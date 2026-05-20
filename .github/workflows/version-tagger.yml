@@ -1,0 +1,23 @@
+name: Version Tagger
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**.py'
+      - 'version.txt'
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Bump version and create tag
+        uses: mathieudutour/github-tag-action@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          release-branches: main

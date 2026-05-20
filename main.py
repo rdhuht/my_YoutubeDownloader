@@ -157,8 +157,10 @@ class YouTubeDownloader:
     def show_proxy_dialog(self):
         dialog = tk.Toplevel(self.root)
         dialog.title("代理设置")
-        dialog.geometry("400x120")
+        dialog.geometry("450x130")
         dialog.transient(self.root)
+        dialog.update_idletasks()
+        dialog.minsize(450, 130)
         dialog.grab_set()
 
         # 让对话框居中

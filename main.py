@@ -392,9 +392,9 @@ class YouTubeDownloader:
             index = int(self.playlist_tree.item(iid, 'values')[1]) - 1
             if index < len(self.playlist_entries):
                 entry = self.playlist_entries[index]
-                height = entry.get('height') or selected_height
+                # 使用选中的质量来计算大小
                 duration = entry.get('duration') or 300
-                size_str = estimate_size(height, duration)
+                size_str = estimate_size(selected_height, duration)
                 values = list(self.playlist_tree.item(iid, 'values'))
                 values[4] = size_str
                 self.playlist_tree.item(iid, values=values)
@@ -549,6 +549,9 @@ class YouTubeDownloader:
             iid = self.playlist_tree.insert('', 'end', values=("√", i + 1, title, duration_str, size_str))
             var = tk.IntVar(value=1)
             self.check_vars[iid] = var
+
+        # 初始加载后触发质量变化更新大小
+        self.root.after(100, self.on_quality_changed)
 
     # 下载单个视频
     def download_single(self, entry):

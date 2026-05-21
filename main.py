@@ -255,6 +255,16 @@ class YouTubeDownloader:
         self.caption_combobox = ttk.Combobox(self.caption_frame, state="readonly", width=15)
         self.caption_combobox.pack(side=tk.LEFT, padx=5)
 
+        # 视频格式选择
+        self.format_frame = ttk.Frame(root)
+        self.format_frame.pack(pady=5)
+        self.format_label = ttk.Label(self.format_frame, text="输出格式:", font=small_font)
+        self.format_label.pack(side=tk.LEFT, padx=10)
+        self.format_combobox = ttk.Combobox(self.format_frame, state="readonly", width=10)
+        self.format_combobox['values'] = ['mp4', 'mkv', 'webm', 'avi']
+        self.format_combobox.current(0)
+        self.format_combobox.pack(side=tk.LEFT, padx=5)
+
         # 下载按钮框架
         self.download_btn_frame = ttk.Frame(root)
         self.download_btn_frame.pack(pady=5)
@@ -668,9 +678,10 @@ class YouTubeDownloader:
             ydl_opts['proxy'] = USER_PROXY
 
         if FFMPEG_AVAILABLE:
+            output_format = self.format_combobox.get()
             ydl_opts['postprocessors'] = [{
                 'key': 'FFmpegVideoConvertor',
-                'preferedformat': 'mp4',
+                'preferedformat': output_format,
             }]
 
         selected_subtitle = self.caption_combobox.get()

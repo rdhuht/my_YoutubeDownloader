@@ -156,6 +156,9 @@ class YouTubeDownloader:
         self.playlist_tree.heading('title', text='标题')
         self.playlist_tree.heading('duration', text='时长')
 
+        # 绑定点击事件到选择列
+        self.playlist_tree.bind('<Button-1>', self.on_tree_click)
+
         self.playlist_tree.pack(side='left', fill='both', expand=True)
         self.tree_scroll_y.pack(side='right', fill='y')
         self.tree_scroll_x.pack(side='bottom', fill='x')
@@ -393,6 +396,20 @@ class YouTubeDownloader:
                 self.playlist_tree.item(iid, 'values')[2],
                 self.playlist_tree.item(iid, 'values')[3]
             ))
+
+    # Treeview点击事件
+    def on_tree_click(self, event):
+        # 点击的是选择列
+        region = self.playlist_tree.identify_region(event.x, event.y)
+        if region == 'cell':
+            column = self.playlist_tree.identify_column(event.x)
+            if column == '#1':  # 选择列
+                item = self.playlist_tree.identify_row(event.y)
+                if item and item in self.check_vars:
+                    var = self.check_vars[item]
+                    var.set(1 - var.get())  # 切换状态
+                    self.update_tree_selections()
+                    return "break"  # 阻止默认行为
 
     # 获取选中的视频
     def get_selected_videos(self):

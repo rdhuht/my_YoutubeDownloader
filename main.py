@@ -385,6 +385,10 @@ class YouTubeDownloader:
                 elapsed_time = time.time() - self.download_start_time
                 elapsed_time_str = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
                 self.root.title(f"YouTube 下载器 - 已用时间: {elapsed_time_str}")
+        elif d['status'] == 'finished' and d.get('postprocessor'):
+            # 格式转换中
+            self.progress_label['text'] = f"转换中... {d.get('postprocessor_progress', 0):.0f}%"
+            self.root.update_idletasks()
 
     # 显示播放列表下载进度
     def show_playlist_progress(self, d):
@@ -400,6 +404,12 @@ class YouTubeDownloader:
                 elapsed_time = time.time() - self.download_start_time
                 elapsed_time_str = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
                 self.root.title(f"YouTube 下载器 - 视频 {self.current_playlist_index}/{self.total_playlist_videos} - 已用时间: {elapsed_time_str}")
+        elif d['status'] == 'finished' and d.get('postprocessor'):
+            # 格式转换中
+            pp_progress = d.get('postprocessor_progress', 0) * 100
+            self.progress_label['text'] = f"视频 {self.current_playlist_index}/{self.total_playlist_videos} - 转换中 {pp_progress:.0f}%"
+            self.progress['value'] = pp_progress
+            self.root.update_idletasks()
 
     # 开始解析视频线程
     def start_parse_video_thread(self):

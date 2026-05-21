@@ -40,12 +40,24 @@ def get_url_from_clipboard(root):
         pass
     return None
 
+# 计算预估文件大小
+def estimate_size(height, duration=None):
+    est_size = height * height * 10 / 8  # 粗略估算 bytes per pixel
+    if duration and duration > 0:
+        est_size = est_size * duration / 60  # 根据时长调整
+    if est_size > 1024 * 1024 * 1024:
+        return f"{est_size / 1024 / 1024 / 1024:.2f} GB"
+    elif est_size > 1024 * 1024:
+        return f"{est_size / 1024 / 1024:.1f} MB"
+    else:
+        return f"{est_size / 1024:.0f} KB"
+
 # 定义主应用程序类
 class YouTubeDownloader:
     def __init__(self, root):
         self.root = root
         self.root.title("YouTube 下载器")
-        self.root.minsize(width=700, height=450)
+        self.root.minsize(width=800, height=500)
         self.is_downloading = False
         self.download_start_time = None
         self.current_url = None
@@ -53,15 +65,13 @@ class YouTubeDownloader:
         self.playlist_entries = []
         self.format_map = {}
         self.formats = []
-        self.playlist_format_map = {}
+        self.quality_options = []  # 简化的质量选项列表
 
         # 设置字体（优先使用支持中文的字体）
         try:
             self.default_font = ("Microsoft YaHei", 10)
         except:
             self.default_font = ("Arial", 10)
-        large_font = tkFont.Font(family=self.default_font[0], size=20)
-        middle_font = tkFont.Font(family=self.default_font[0], size=18)
         small_font = tkFont.Font(family=self.default_font[0], size=16)
 
         # 设置 ttk 样式，使用支持中文的字体
@@ -91,71 +101,38 @@ class YouTubeDownloader:
         self.button_load = ttk.Button(self.top_frame, text="加载视频信息", command=self.start_parse_video_thread, bootstyle='success')
         self.button_load.pack(side=tk.RIGHT)
 
-        # ===== Tab 控件 =====
-        self.tab_control = ttk.Notebook(root)
-        self.tab_control.pack(fill='both', expand=True, padx=10, pady=5)
-
-        # 单视频 Tab
-        self.single_tab = ttk.Frame(self.tab_control)
-        self.tab_control.add(self.single_tab, text="单视频")
-
-        # 播放列表 Tab
-        self.playlist_tab = ttk.Frame(self.tab_control)
-        self.tab_control.add(self.playlist_tab, text="播放列表")
-
-        # ===== 单视频 Tab 内容 =====
-        # 显示视频标题的标签
-        self.video_title_label = ttk.Label(self.single_tab, text="视频标题", foreground='gray')
+        # ===== 内容区域 =====
+        # 视频信息标题
+        self.video_title_label = ttk.Label(root, text="请输入URL并点击加载", foreground='gray')
         self.video_title_label.pack(padx=10, pady=(5, 5))
 
-        # 质量选择框架
-        self.quality_frame = ttk.Frame(self.single_tab)
-        self.quality_frame.pack(padx=5, pady=10)
-        self.quality_label = ttk.Label(self.quality_frame, text="质量:", font=small_font)
-        self.quality_label.pack(side=tk.LEFT, padx=10)
-        self.quality_combobox = ttk.Combobox(self.quality_frame, state="readonly", width=15)
-        self.quality_combobox.pack(side=tk.LEFT, padx=5)
-
-        # 字幕/配音选择框架
-        self.caption_label = ttk.Label(self.quality_frame, text="字幕/配音:", font=small_font)
-        self.caption_label.pack(side=tk.LEFT, padx=5)
-        self.caption_combobox = ttk.Combobox(self.quality_frame, state="readonly", width=25)
-        self.caption_combobox.pack(side=tk.LEFT, padx=5)
-
-        # ===== 播放列表 Tab 内容 =====
-        # 播放列表标题
-        self.playlist_title_label = ttk.Label(self.playlist_tab, text="播放列表标题", foreground='gray')
-        self.playlist_title_label.pack(padx=10, pady=(5, 5))
-
-        # 播放列表视频数量
-        self.playlist_count_label = ttk.Label(self.playlist_tab, text="共 0 个视频", foreground='gray')
-        self.playlist_count_label.pack(padx=10, pady=(0, 5))
-
         # Treeview 框架
-        self.tree_frame = ttk.Frame(self.playlist_tab)
+        self.tree_frame = ttk.Frame(root)
         self.tree_frame.pack(fill='both', expand=True, padx=10, pady=5)
 
         # Treeview 滚动条
         self.tree_scroll_y = ttk.Scrollbar(self.tree_frame, orient='vertical')
         self.tree_scroll_x = ttk.Scrollbar(self.tree_frame, orient='horizontal')
 
-        # Treeview
-        self.playlist_tree = ttk.Treeview(self.tree_frame, yscrollcommand=self.tree_scroll_y.set, xscrollcommand=self.tree_scroll_x.set, show='headings', selectmode='none', height=10)
+        # Treeview - 列: 选择, 序号, 标题, 时长, 大小
+        self.playlist_tree = ttk.Treeview(self.tree_frame, yscrollcommand=self.tree_scroll_y.set, xscrollcommand=self.tree_scroll_x.set, show='headings', selectmode='none', height=12)
         self.tree_scroll_y.config(command=self.playlist_tree.yview)
         self.tree_scroll_x.config(command=self.playlist_tree.xview)
 
         # 定义列
-        self.playlist_tree['columns'] = ('select', 'index', 'title', 'duration')
+        self.playlist_tree['columns'] = ('select', 'index', 'title', 'duration', 'size')
         self.playlist_tree.column('select', width=50, anchor='center')
         self.playlist_tree.column('index', width=50, anchor='center')
         self.playlist_tree.column('title', width=400)
         self.playlist_tree.column('duration', width=100, anchor='center')
+        self.playlist_tree.column('size', width=100, anchor='center')
 
         # 设置表头
         self.playlist_tree.heading('select', text='选择')
         self.playlist_tree.heading('index', text='序号')
         self.playlist_tree.heading('title', text='标题')
         self.playlist_tree.heading('duration', text='时长')
+        self.playlist_tree.heading('size', text='大小')
 
         # 绑定点击事件到选择列
         self.playlist_tree.bind('<Button-1>', self.on_tree_click)
@@ -168,44 +145,40 @@ class YouTubeDownloader:
         self.check_vars = {}
 
         # 全选/取消全选按钮框架
-        self.playlist_btn_frame = ttk.Frame(self.playlist_tab)
-        self.playlist_btn_frame.pack(pady=5)
+        self.btn_frame = ttk.Frame(root)
+        self.btn_frame.pack(pady=5)
 
-        self.btn_select_all = ttk.Button(self.playlist_btn_frame, text="全选", command=self.select_all_videos, bootstyle='info', width=10)
+        self.btn_select_all = ttk.Button(self.btn_frame, text="全选", command=self.select_all_videos, bootstyle='info', width=10)
         self.btn_select_all.pack(side=tk.LEFT, padx=5)
 
-        self.btn_deselect_all = ttk.Button(self.playlist_btn_frame, text="取消全选", command=self.deselect_all_videos, bootstyle='info', width=10)
+        self.btn_deselect_all = ttk.Button(self.btn_frame, text="取消全选", command=self.deselect_all_videos, bootstyle='info', width=10)
         self.btn_deselect_all.pack(side=tk.LEFT, padx=5)
 
-        # 播放列表质量选择
-        self.playlist_quality_frame = ttk.Frame(self.playlist_tab)
-        self.playlist_quality_frame.pack(pady=5)
-        self.playlist_quality_label = ttk.Label(self.playlist_quality_frame, text="下载质量:", font=small_font)
-        self.playlist_quality_label.pack(side=tk.LEFT, padx=10)
-        self.playlist_quality_combobox = ttk.Combobox(self.playlist_quality_frame, state="readonly", width=15)
-        self.playlist_quality_combobox.pack(side=tk.LEFT, padx=5)
+        # 下载质量选择
+        self.quality_frame = ttk.Frame(root)
+        self.quality_frame.pack(pady=5)
+        self.quality_label = ttk.Label(self.quality_frame, text="下载质量:", font=small_font)
+        self.quality_label.pack(side=tk.LEFT, padx=10)
+        self.quality_combobox = ttk.Combobox(self.quality_frame, state="readonly", width=15)
+        self.quality_combobox.pack(side=tk.LEFT, padx=5)
 
-        # 播放列表字幕/配音选择
-        self.playlist_caption_frame = ttk.Frame(self.playlist_tab)
-        self.playlist_caption_frame.pack(pady=5)
-        self.playlist_caption_label = ttk.Label(self.playlist_caption_frame, text="字幕/配音:", font=small_font)
-        self.playlist_caption_label.pack(side=tk.LEFT, padx=10)
-        self.playlist_caption_combobox = ttk.Combobox(self.playlist_caption_frame, state="readonly", width=15)
-        self.playlist_caption_combobox.pack(side=tk.LEFT, padx=5)
+        # 字幕/配音选择
+        self.caption_frame = ttk.Frame(root)
+        self.caption_frame.pack(pady=5)
+        self.caption_label = ttk.Label(self.caption_frame, text="字幕/配音:", font=small_font)
+        self.caption_label.pack(side=tk.LEFT, padx=10)
+        self.caption_combobox = ttk.Combobox(self.caption_frame, state="readonly", width=15)
+        self.caption_combobox.pack(side=tk.LEFT, padx=5)
 
-        # 下载选中视频按钮
-        self.btn_download_selected = ttk.Button(self.playlist_btn_frame, text="下载选中视频", command=self.start_download_selected_thread, bootstyle='danger', width=15)
-        self.btn_download_selected.pack(side=tk.LEFT, padx=20)
+        # 下载按钮框架
+        self.download_btn_frame = ttk.Frame(root)
+        self.download_btn_frame.pack(pady=5)
 
-        # ===== 底部按钮框架（单视频Tab）=====
-        self.button_frame = ttk.Frame(root)
-        self.button_frame.pack(pady=5)
-
-        self.button_browse = ttk.Button(self.button_frame, text="下载路径", command=self.browse_path, bootstyle='info')
+        self.button_browse = ttk.Button(self.download_btn_frame, text="下载路径", command=self.browse_path, bootstyle='info')
         self.button_browse.pack(side=tk.LEFT, padx=(10, 5))
-        self.button_download = ttk.Button(self.button_frame, text="开始下载", command=self.start_download_thread, bootstyle='danger')
+        self.button_download = ttk.Button(self.download_btn_frame, text="下载选中视频", command=self.start_download_thread, bootstyle='danger', width=15)
         self.button_download.pack(side=tk.LEFT, padx=(5, 10))
-        self.button_cancel = ttk.Button(self.button_frame, text="取消下载", command=self.cancel_download, bootstyle='warning')
+        self.button_cancel = ttk.Button(self.download_btn_frame, text="取消下载", command=self.cancel_download, bootstyle='warning')
         self.button_cancel.pack(side=tk.LEFT, padx=(5, 10))
         self.button_cancel.config(state='disabled')
 
@@ -284,7 +257,7 @@ class YouTubeDownloader:
 
     # 关于对话框
     def show_about(self):
-        messagebox.showinfo("关于", "YouTube 下载器 v3.0\n\n支持单视频和播放列表下载")
+        messagebox.showinfo("关于", "YouTube 下载器 v4.0\n\n支持单视频和播放列表下载")
 
     # 将窗口居中显示
     def center_window(self, window):
@@ -342,28 +315,25 @@ class YouTubeDownloader:
 
     # 开始下载视频线程
     def start_download_thread(self):
-        self.progress['value'] = 0
-        self.disable_buttons()
-        self.root.title(f"YouTube 下载器 - 开始下载")
-        threading.Thread(target=self.download_video).start()
-
-    # 开始下载选中视频线程
-    def start_download_selected_thread(self):
         selected = self.get_selected_videos()
         if not selected:
             messagebox.showwarning("警告", "请至少选择一个视频")
+            self.enable_buttons()
             return
         self.progress['value'] = 0
         self.disable_buttons()
-        self.root.title(f"YouTube 下载器 - 开始下载 {len(selected)} 个视频")
-        threading.Thread(target=self.download_playlist, args=(selected,)).start()
+        if len(selected) == 1:
+            self.root.title(f"YouTube 下载器 - 开始下载")
+            threading.Thread(target=self.download_single, args=(selected[0],)).start()
+        else:
+            self.root.title(f"YouTube 下载器 - 开始下载 {len(selected)} 个视频")
+            threading.Thread(target=self.download_multi, args=(selected,)).start()
 
     # 禁用按钮
     def disable_buttons(self):
         self.button_download.config(state='disabled')
         self.button_browse.config(state='disabled')
         self.button_load.config(state="disabled")
-        self.btn_download_selected.config(state='disabled')
         self.btn_select_all.config(state='disabled')
         self.btn_deselect_all.config(state='disabled')
 
@@ -372,7 +342,6 @@ class YouTubeDownloader:
         self.button_download.config(state='normal')
         self.button_browse.config(state='normal')
         self.button_load.config(state='normal')
-        self.btn_download_selected.config(state='normal')
         self.btn_select_all.config(state='normal')
         self.btn_deselect_all.config(state='normal')
 
@@ -406,16 +375,12 @@ class YouTubeDownloader:
     # 更新Treeview选择状态
     def update_tree_selections(self):
         for iid, var in self.check_vars.items():
-            self.playlist_tree.item(iid, values=(
-                "√" if var.get() else "",
-                self.playlist_tree.item(iid, 'values')[1],
-                self.playlist_tree.item(iid, 'values')[2],
-                self.playlist_tree.item(iid, 'values')[3]
-            ))
+            values = list(self.playlist_tree.item(iid, 'values'))
+            values[0] = "√" if var.get() else ""
+            self.playlist_tree.item(iid, values=values)
 
     # Treeview点击事件
     def on_tree_click(self, event):
-        # 点击的是选择列
         region = self.playlist_tree.identify_region(event.x, event.y)
         if region == 'cell':
             column = self.playlist_tree.identify_column(event.x)
@@ -423,9 +388,9 @@ class YouTubeDownloader:
                 item = self.playlist_tree.identify_row(event.y)
                 if item and item in self.check_vars:
                     var = self.check_vars[item]
-                    var.set(1 - var.get())  # 切换状态
+                    var.set(1 - var.get())
                     self.update_tree_selections()
-                    return "break"  # 阻止默认行为
+                    return "break"
 
     # 获取选中的视频
     def get_selected_videos(self):
@@ -436,10 +401,6 @@ class YouTubeDownloader:
                 if index < len(self.playlist_entries):
                     selected.append(self.playlist_entries[index])
         return selected
-
-    # 复选框点击处理
-    def on_check_click(self, iid):
-        self.update_tree_selections()
 
     # 加载视频信息
     def load_video_msg(self):
@@ -463,13 +424,11 @@ class YouTubeDownloader:
                 # 判断是否为播放列表
                 entries = info_dict.get('entries', [])
                 if entries:
-                    # 播放列表
                     self.is_playlist = True
                     self.load_playlist_ui(info_dict)
                 else:
-                    # 单视频
                     self.is_playlist = False
-                    self.load_single_video_ui(info_dict)
+                    self.load_single_ui(info_dict)
 
         except Exception as e:
             messagebox.showerror("加载视频错误", f"错误: {e}")
@@ -478,52 +437,32 @@ class YouTubeDownloader:
             self.enable_buttons()
 
     # 加载单视频UI
-    def load_single_video_ui(self, info_dict):
+    def load_single_ui(self, info_dict):
         title = info_dict.get('title', '视频')
         self.formats = info_dict.get('formats', [])
-        self.video_title_label['text'] = f"视频标题: {title}"
+        self.video_title_label['text'] = f"视频: {title}"
 
-        qualities = []
-        self.format_map = {}
+        # 收集质量选项（只显示分辨率）
+        heights = set()
         for fmt in self.formats:
             if fmt.get('ext') == 'mp4' and fmt.get('height'):
-                height = fmt.get('height')
-                filesize = fmt.get('filesize')
-                format_id = fmt.get('format_id')
+                heights.add(fmt.get('height'))
 
-                if filesize:
-                    size_str = f"{filesize / 1024 / 1024:.2f} MB"
-                else:
-                    est_size = height * height * 10 / 8
-                    if est_size > 1024:
-                        size_str = f"~{est_size / 1024:.1f} GB"
-                    else:
-                        size_str = f"~{est_size:.0f} MB"
-
-                quality_text = f"{height}p - {size_str}"
-                qualities.append(quality_text)
-                self.format_map[quality_text] = format_id
-
-        # 去重并保持顺序
-        seen = set()
-        unique_qualities = []
-        for q in qualities:
-            if q not in seen:
-                seen.add(q)
-                unique_qualities.append(q)
-
-        self.quality_combobox['values'] = unique_qualities
-        if unique_qualities:
+        self.quality_options = sorted(list(heights), reverse=True)
+        self.quality_combobox['values'] = [f"{h}p" for h in self.quality_options]
+        if self.quality_options:
             self.quality_combobox.current(0)
 
+        # 字幕选项
         subtitles = info_dict.get('subtitles', {})
-        self.caption_combobox['values'] = list(subtitles.keys())
-        if subtitles:
-            self.caption_combobox.current(0)
+        self.caption_combobox['values'] = list(subtitles.keys()) if subtitles else ['无']
+        self.caption_combobox.current(0)
 
-        # 切换到单视频Tab
-        self.tab_control.select(0)
-        self.root.title(f"YouTube 下载器 - 视频已加载: {title}")
+        # 清空并添加单个视频到列表
+        self.playlist_entries = [info_dict]
+        self.load_treeview()
+
+        self.root.title(f"YouTube 下载器 - 已加载: {title}")
 
     # 加载播放列表UI
     def load_playlist_ui(self, info_dict):
@@ -531,70 +470,49 @@ class YouTubeDownloader:
         entries = info_dict.get('entries', [])
 
         self.playlist_entries = [e for e in entries if e is not None]
-        self.playlist_title_label['text'] = f"播放列表: {playlist_title}"
-        self.playlist_count_label['text'] = f"共 {len(self.playlist_entries)} 个视频"
+        self.video_title_label['text'] = f"播放列表: {playlist_title} (共 {len(self.playlist_entries)} 个视频)"
 
-        # 清空Treeview
-        for item in self.playlist_tree.get_children():
-            self.playlist_tree.delete(item)
-        self.check_vars.clear()
-        self.playlist_format_map = {}  # 保存播放列表的格式映射
+        # 收集质量选项
+        heights = set()
+        for entry in self.playlist_entries:
+            if entry and entry.get('formats'):
+                for fmt in entry.get('formats', []):
+                    if fmt.get('ext') == 'mp4' and fmt.get('height'):
+                        heights.add(fmt.get('height'))
 
-        # 获取所有视频的质量选项
-        qualities = []
-        format_map = {}
-        sample_formats = None
+        self.quality_options = sorted(list(heights), reverse=True) if heights else [1080, 720, 480, 360]
+        self.quality_combobox['values'] = [f"{h}p" for h in self.quality_options]
+        if self.quality_options:
+            self.quality_combobox.current(0)
 
-        # 尝试从 info_dict 获取格式信息（播放列表级别）
-        if info_dict.get('formats'):
-            sample_formats = info_dict.get('formats', [])
-        else:
-            # 从第一个有效条目获取格式信息
-            for entry in self.playlist_entries:
-                if entry and entry.get('formats'):
-                    sample_formats = entry.get('formats', [])
-                    break
-
-        if sample_formats:
-            for fmt in sample_formats:
-                if fmt.get('ext') == 'mp4' and fmt.get('height'):
-                    height = fmt.get('height')
-                    filesize = fmt.get('filesize')
-                    format_id = fmt.get('format_id')
-
-                    if filesize:
-                        size_str = f"{filesize / 1024 / 1024:.2f} MB"
-                    else:
-                        est_size = height * height * 10 / 8
-                        if est_size > 1024:
-                            size_str = f"~{est_size / 1024:.1f} GB"
-                        else:
-                            size_str = f"~{est_size:.0f} MB"
-
-                    quality_text = f"{height}p - {size_str}"
-                    if quality_text not in qualities:
-                        qualities.append(quality_text)
-                        self.playlist_format_map[quality_text] = format_id
-
-        self.playlist_quality_combobox['values'] = qualities
-        if qualities:
-            self.playlist_quality_combobox.current(0)
-
-        # 获取字幕/配音选项
+        # 字幕选项
         subtitles = set()
         for entry in self.playlist_entries:
             if entry and entry.get('subtitles'):
                 subtitles.update(entry.get('subtitles', {}).keys())
-        subtitle_list = list(subtitles)
-        self.playlist_caption_combobox['values'] = subtitle_list
-        if subtitle_list:
-            self.playlist_caption_combobox.current(0)
+        subtitle_list = list(subtitles) if subtitles else ['无']
+        self.caption_combobox['values'] = subtitle_list
+        self.caption_combobox.current(0)
 
-        # 填充Treeview
+        self.load_treeview()
+        self.root.title(f"YouTube 下载器 - 已加载: {playlist_title}")
+
+    # 加载Treeview
+    def load_treeview(self):
+        for item in self.playlist_tree.get_children():
+            self.playlist_tree.delete(item)
         self.check_vars.clear()
+
+        quality_text = self.quality_combobox.get()
+        if quality_text:
+            selected_height = int(quality_text.replace('p', ''))
+        else:
+            selected_height = 1080
+
         for i, entry in enumerate(self.playlist_entries):
             if entry is None:
                 continue
+
             title = entry.get('title', '未知标题')
             duration = entry.get('duration')
             if duration:
@@ -602,44 +520,35 @@ class YouTubeDownloader:
             else:
                 duration_str = "--:--"
 
-            iid = self.playlist_tree.insert('', 'end', values=("√", i + 1, title, duration_str))
-            var = tk.IntVar(value=1)  # 默认选中
+            # 计算预估大小
+            height = entry.get('height') or selected_height
+            duration_val = entry.get('duration') or 300  # 默认5分钟
+            size_str = estimate_size(height, duration_val)
+
+            iid = self.playlist_tree.insert('', 'end', values=("√", i + 1, title, duration_str, size_str))
+            var = tk.IntVar(value=1)
             self.check_vars[iid] = var
 
-        # 切换到播放列表Tab
-        self.tab_control.select(1)
-        self.root.title(f"YouTube 下载器 - 播放列表已加载: {playlist_title}")
-
-    # 下载视频
-    def download_video(self):
-        url = self.current_url
-        if not url:
-            messagebox.showerror("错误", "请输入有效的视频URL。")
-            self.enable_buttons()
-            return
-
+    # 下载单个视频
+    def download_single(self, entry):
         quality_text = self.quality_combobox.get()
         if not quality_text:
             messagebox.showerror("错误", "请选择视频质量。")
             self.enable_buttons()
             return
 
-        selected_format = self.format_map.get(quality_text)
-        if not selected_format:
-            messagebox.showerror("错误", "未能找到匹配的格式。")
-            self.enable_buttons()
-            return
-
-        selected_subtitle = self.caption_combobox.get()
+        height = int(quality_text.replace('p', ''))
+        format_str = f"bestvideo[height<={height}]+bestaudio/best"
 
         self.is_downloading = True
         self.download_start_time = time.time()
         self.button_cancel.config(state='normal')
 
-        if selected_format:
-            format_str = f"{selected_format}+bestaudio/best"
-        else:
-            format_str = "bestvideo+bestaudio/best"
+        video_url = entry.get('url') or entry.get('webpage_url')
+        if not video_url:
+            messagebox.showerror("错误", "无法获取视频URL。")
+            self.enable_buttons()
+            return
 
         ydl_opts = {
             'format': format_str,
@@ -655,17 +564,16 @@ class YouTubeDownloader:
                 'key': 'FFmpegVideoConvertor',
                 'preferedformat': 'mp4',
             }]
-        else:
-            ydl_opts['format'] = f"{selected_format}/best"
 
-        if selected_subtitle:
+        selected_subtitle = self.caption_combobox.get()
+        if selected_subtitle and selected_subtitle != '无':
             ydl_opts['subtitleslangs'] = [selected_subtitle]
             ydl_opts['writesubtitles'] = True
             ydl_opts['subtitlesformat'] = 'srt'
 
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
+                ydl.download([video_url])
             elapsed_time = time.time() - self.download_start_time
             elapsed_time_str = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
             self.root.title(f"YouTube 下载器 - 下载完成 (已用时间: {elapsed_time_str})")
@@ -680,28 +588,16 @@ class YouTubeDownloader:
             self.download_start_time = None
             self.button_cancel.config(state='disabled')
 
-    # 下载播放列表
-    def download_playlist(self, selected_entries):
-        if not selected_entries:
-            self.enable_buttons()
-            return
-
-        quality_text = self.playlist_quality_combobox.get()
+    # 下载多个视频
+    def download_multi(self, selected_entries):
+        quality_text = self.quality_combobox.get()
         if not quality_text:
             messagebox.showerror("错误", "请选择视频质量。")
             self.enable_buttons()
             return
 
-        # 获取format_id
-        format_id = self.playlist_format_map.get(quality_text)
-        # 如果format_id为空，尝试从quality_text中提取分辨率
-        if not format_id and quality_text:
-            # quality_text格式: "1080p - 850.25 MB" 或 "720p - ~350 MB"
-            import re
-            match = re.match(r'(\d+)p', quality_text)
-            if match:
-                height = match.group(1)
-                format_id = f"bestvideo[height<={height}]"
+        height = int(quality_text.replace('p', ''))
+        format_str = f"bestvideo[height<={height}]+bestaudio/best"
 
         self.is_downloading = True
         self.download_start_time = time.time()
@@ -711,6 +607,8 @@ class YouTubeDownloader:
         self.current_playlist_index = 0
         success_count = 0
         fail_count = 0
+
+        selected_subtitle = self.caption_combobox.get()
 
         for i, entry in enumerate(selected_entries):
             if not self.is_downloading:
@@ -723,11 +621,6 @@ class YouTubeDownloader:
                 continue
 
             self.root.title(f"YouTube 下载器 - 下载第 {i+1}/{self.total_playlist_videos} 个视频...")
-
-            if format_id:
-                format_str = f"{format_id}+bestaudio/best"
-            else:
-                format_str = "bestvideo+bestaudio/best"
 
             ydl_opts = {
                 'format': format_str,
@@ -744,9 +637,7 @@ class YouTubeDownloader:
                     'preferedformat': 'mp4',
                 }]
 
-            # 添加字幕设置
-            selected_subtitle = self.playlist_caption_combobox.get()
-            if selected_subtitle:
+            if selected_subtitle and selected_subtitle != '无':
                 ydl_opts['subtitleslangs'] = [selected_subtitle]
                 ydl_opts['writesubtitles'] = True
                 ydl_opts['subtitlesformat'] = 'srt'

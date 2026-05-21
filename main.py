@@ -570,6 +570,7 @@ class YouTubeDownloader:
             self.playlist_caption_combobox.current(0)
 
         # 填充Treeview
+        self.check_vars.clear()
         for i, entry in enumerate(self.playlist_entries):
             if entry is None:
                 continue
@@ -580,10 +581,9 @@ class YouTubeDownloader:
             else:
                 duration_str = "--:--"
 
-            var = tk.IntVar(value=1)  # 默认选中
-            self.check_vars[f"I{i}"] = var
-
             iid = self.playlist_tree.insert('', 'end', values=("√", i + 1, title, duration_str))
+            var = tk.IntVar(value=1)  # 默认选中
+            self.check_vars[iid] = var
 
         # 切换到播放列表Tab
         self.tab_control.select(1)

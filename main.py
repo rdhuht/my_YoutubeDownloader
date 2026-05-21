@@ -434,7 +434,6 @@ class YouTubeDownloader:
             ydl_opts = {
                 'quiet': True,
                 'skip_download': True,
-                'js_runtimes': 'node',
             }
             if USER_PROXY:
                 ydl_opts['proxy'] = USER_PROXY

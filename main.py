@@ -261,7 +261,7 @@ class YouTubeDownloader:
         self.format_label = ttk.Label(self.format_frame, text="输出格式:", font=small_font)
         self.format_label.pack(side=tk.LEFT, padx=10)
         self.format_combobox = ttk.Combobox(self.format_frame, state="readonly", width=10)
-        self.format_combobox['values'] = ['mp4', 'mkv', 'webm', 'avi']
+        self.format_combobox['values'] = ['mp4', 'mkv', 'webm', 'avi', '不转换']
         self.format_combobox.current(0)
         self.format_combobox.pack(side=tk.LEFT, padx=5)
 
@@ -719,8 +719,8 @@ class YouTubeDownloader:
         if USER_PROXY:
             ydl_opts['proxy'] = USER_PROXY
 
-        if FFMPEG_AVAILABLE:
-            output_format = self.format_combobox.get()
+        output_format = self.format_combobox.get()
+        if output_format != '不转换' and FFMPEG_AVAILABLE:
             ydl_opts['postprocessors'] = [{
                 'key': 'FFmpegVideoConvertor',
                 'preferedformat': output_format,

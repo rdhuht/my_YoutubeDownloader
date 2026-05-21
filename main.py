@@ -545,11 +545,15 @@ class YouTubeDownloader:
         format_map = {}
         sample_formats = None
 
-        # 从第一个有效条目获取格式信息
-        for entry in self.playlist_entries:
-            if entry and entry.get('formats'):
-                sample_formats = entry.get('formats', [])
-                break
+        # 尝试从 info_dict 获取格式信息（播放列表级别）
+        if info_dict.get('formats'):
+            sample_formats = info_dict.get('formats', [])
+        else:
+            # 从第一个有效条目获取格式信息
+            for entry in self.playlist_entries:
+                if entry and entry.get('formats'):
+                    sample_formats = entry.get('formats', [])
+                    break
 
         if sample_formats:
             for fmt in sample_formats:
@@ -690,6 +694,14 @@ class YouTubeDownloader:
 
         # 获取format_id
         format_id = self.playlist_format_map.get(quality_text)
+        # 如果format_id为空，尝试从quality_text中提取分辨率
+        if not format_id and quality_text:
+            # quality_text格式: "1080p - 850.25 MB" 或 "720p - ~350 MB"
+            import re
+            match = re.match(r'(\d+)p', quality_text)
+            if match:
+                height = match.group(1)
+                format_id = f"bestvideo[height<={height}]"
 
         self.is_downloading = True
         self.download_start_time = time.time()
@@ -710,7 +722,7 @@ class YouTubeDownloader:
                 fail_count += 1
                 continue
 
-            self.root.title(f"YouTube 下载器 - 下载第 {i+1}/{total} 个视频...")
+            self.root.title(f"YouTube 下载器 - 下载第 {i+1}/{self.total_playlist_videos} 个视频...")
 
             if format_id:
                 format_str = f"{format_id}+bestaudio/best"

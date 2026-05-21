@@ -247,10 +247,10 @@ class YouTubeDownloader:
         self.quality_combobox.pack(side=tk.LEFT, padx=5)
         self.quality_combobox.bind('<<ComboboxSelected>>', self.on_quality_changed)
 
-        # 字幕/配音选择
+        # 字幕选择
         self.caption_frame = ttk.Frame(root)
         self.caption_frame.pack(pady=5)
-        self.caption_label = ttk.Label(self.caption_frame, text="字幕/配音:", font=small_font)
+        self.caption_label = ttk.Label(self.caption_frame, text="字幕:", font=small_font)
         self.caption_label.pack(side=tk.LEFT, padx=10)
         self.caption_combobox = ttk.Combobox(self.caption_frame, state="readonly", width=15)
         self.caption_combobox.pack(side=tk.LEFT, padx=5)

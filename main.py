@@ -177,7 +177,7 @@ class YouTubeDownloader:
 
         self.button_browse = ttk.Button(self.download_btn_frame, text="下载路径", command=self.browse_path, bootstyle='info')
         self.button_browse.pack(side=tk.LEFT, padx=(10, 5))
-        self.button_download = ttk.Button(self.download_btn_frame, text="下载选中视频", command=self.start_download_thread, bootstyle='danger', width=15)
+        self.button_download = ttk.Button(self.download_btn_frame, text="开始下载", command=self.start_download_thread, bootstyle='danger', width=15)
         self.button_download.pack(side=tk.LEFT, padx=(5, 10))
         self.button_cancel = ttk.Button(self.download_btn_frame, text="取消下载", command=self.cancel_download, bootstyle='warning')
         self.button_cancel.pack(side=tk.LEFT, padx=(5, 10))

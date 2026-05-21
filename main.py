@@ -52,6 +52,50 @@ def estimate_size(height, duration=None):
     else:
         return f"{est_size / 1024:.0f} KB"
 
+# 语言代码映射
+LANGUAGE_MAP = {
+    'en': '英文',
+    'zh': '简体中文',
+    'zh-TW': '繁体中文',
+    'zh-CN': '简体中文',
+    'ja': '日语',
+    'ko': '韩语',
+    'es': '西班牙语',
+    'fr': '法语',
+    'de': '德语',
+    'it': '意大利语',
+    'ru': '俄语',
+    'pt': '葡萄牙语',
+    'vi': '越南语',
+    'id': '印尼语',
+    'th': '泰语',
+    'ar': '阿拉伯语',
+    'hi': '印地语',
+    'nl': '荷兰语',
+    'pl': '波兰语',
+    'tr': '土耳其语',
+    'uk': '乌克兰语',
+    'sv': '瑞典语',
+    'no': '挪威语',
+    'fi': '芬兰语',
+    'da': '丹麦语',
+    'cs': '捷克语',
+    'el': '希腊语',
+    'he': '希伯来语',
+    'ro': '罗马尼亚语',
+    'hu': '匈牙利语',
+    'ms': '马来语',
+}
+
+def get_language_display(code):
+    return LANGUAGE_MAP.get(code, code)
+
+def get_language_code(display):
+    for code, name in LANGUAGE_MAP.items():
+        if name == display:
+            return code
+    return display  # 如果找不到就返回原始值
+
 # 定义主应用程序类
 class YouTubeDownloader:
     def __init__(self, root):
@@ -475,7 +519,8 @@ class YouTubeDownloader:
 
         # 字幕选项
         subtitles = info_dict.get('subtitles', {})
-        self.caption_combobox['values'] = list(subtitles.keys()) if subtitles else ['无']
+        subtitle_list = [get_language_display(k) for k in subtitles.keys()] if subtitles else ['无']
+        self.caption_combobox['values'] = subtitle_list
         self.caption_combobox.current(0)
 
         # 清空并添加单个视频到列表
@@ -510,7 +555,7 @@ class YouTubeDownloader:
         for entry in self.playlist_entries:
             if entry and entry.get('subtitles'):
                 subtitles.update(entry.get('subtitles', {}).keys())
-        subtitle_list = list(subtitles) if subtitles else ['无']
+        subtitle_list = [get_language_display(k) for k in subtitles] if subtitles else ['无']
         self.caption_combobox['values'] = subtitle_list
         self.caption_combobox.current(0)
 
@@ -590,7 +635,9 @@ class YouTubeDownloader:
 
         selected_subtitle = self.caption_combobox.get()
         if selected_subtitle and selected_subtitle != '无':
-            ydl_opts['subtitleslangs'] = [selected_subtitle]
+            # 将显示名称转回语言代码
+            lang_code = get_language_code(selected_subtitle)
+            ydl_opts['subtitleslangs'] = [lang_code]
             ydl_opts['writesubtitles'] = True
             ydl_opts['subtitlesformat'] = 'srt'
 

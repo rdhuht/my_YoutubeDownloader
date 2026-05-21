@@ -385,11 +385,28 @@ class YouTubeDownloader:
                 elapsed_time = time.time() - self.download_start_time
                 elapsed_time_str = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
                 self.root.title(f"YouTube 下载器 - 已用时间: {elapsed_time_str}")
-        elif d['status'] == 'finished':
-            # 下载完成，开始转换格式
-            self.progress_label['text'] = "下载完成，正在转换格式..."
+        elif d['status'] == 'finished' and d.get('postprocessor'):
+            # 进入转换阶段，启动动画
+            self.download_phase = 'converting'
+            self.conversion_start_time = time.time()
             self.progress['value'] = 100
-            self.root.update_idletasks()
+            self.animate_conversion_progress()
+
+    # 转换进度动画
+    def animate_conversion_progress(self):
+        if self.download_phase != 'converting' or not self.is_downloading:
+            return
+        # 动画效果：让进度条来回移动
+        current = self.progress['value']
+        if current > 70:
+            self.progress['value'] = 50
+        else:
+            self.progress['value'] = 90
+        self.progress_label['text'] = "转换中..."
+        self.root.update_idletasks()
+        # 每200ms更新一次
+        if self.download_phase == 'converting' and self.is_downloading:
+            self.root.after(200, self.animate_conversion_progress)
 
     # 显示播放列表下载进度
     def show_playlist_progress(self, d):
@@ -405,11 +422,26 @@ class YouTubeDownloader:
                 elapsed_time = time.time() - self.download_start_time
                 elapsed_time_str = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
                 self.root.title(f"YouTube 下载器 - 视频 {self.current_playlist_index}/{self.total_playlist_videos} - 已用时间: {elapsed_time_str}")
-        elif d['status'] == 'finished':
-            # 下载完成，开始转换格式
-            self.progress_label['text'] = f"视频 {self.current_playlist_index}/{self.total_playlist_videos} 下载完成，正在转换..."
+        elif d['status'] == 'finished' and d.get('postprocessor'):
+            # 进入转换阶段，启动动画
+            self.download_phase = 'converting'
+            self.conversion_start_time = time.time()
             self.progress['value'] = 100
-            self.root.update_idletasks()
+            self.animate_playlist_conversion_progress()
+
+    # 播放列表转换进度动画
+    def animate_playlist_conversion_progress(self):
+        if self.download_phase != 'converting' or not self.is_downloading:
+            return
+        current = self.progress['value']
+        if current > 70:
+            self.progress['value'] = 50
+        else:
+            self.progress['value'] = 90
+        self.progress_label['text'] = f"视频 {self.current_playlist_index}/{self.total_playlist_videos} 转换中..."
+        self.root.update_idletasks()
+        if self.download_phase == 'converting' and self.is_downloading:
+            self.root.after(200, self.animate_playlist_conversion_progress)
 
     # 开始解析视频线程
     def start_parse_video_thread(self):
@@ -668,7 +700,9 @@ class YouTubeDownloader:
 
         self.is_downloading = True
         self.download_start_time = time.time()
+        self.download_phase = 'downloading'  # 'downloading' or 'converting'
         self.button_cancel.config(state='normal')
+        self.conversion_start_time = None
 
         video_url = entry.get('url') or entry.get('webpage_url')
         if not video_url:

@@ -379,15 +379,16 @@ class YouTubeDownloader:
             if total and total > 0:
                 percentage = min(downloaded / total * 100, 100)
                 self.progress['value'] = percentage
-                self.progress_label['text'] = f"{percentage:.2f}%"
+                self.progress_label['text'] = f"下载中 {percentage:.1f}%"
             self.root.update_idletasks()
             if self.download_start_time:
                 elapsed_time = time.time() - self.download_start_time
                 elapsed_time_str = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
                 self.root.title(f"YouTube 下载器 - 已用时间: {elapsed_time_str}")
-        elif d['status'] == 'finished' and d.get('postprocessor'):
-            # 格式转换中
-            self.progress_label['text'] = f"转换中... {d.get('postprocessor_progress', 0):.0f}%"
+        elif d['status'] == 'finished':
+            # 下载完成，准备转换格式
+            self.progress_label['text'] = "下载完成，准备转换格式..."
+            self.progress['value'] = 100
             self.root.update_idletasks()
 
     # 显示播放列表下载进度
@@ -397,18 +398,17 @@ class YouTubeDownloader:
             total = d.get('total_bytes') or d.get('totalbyte') or 0
             if total and total > 0:
                 percentage = min(downloaded / total * 100, 100)
-                self.progress_label['text'] = f"视频 {self.current_playlist_index}/{self.total_playlist_videos} - {percentage:.2f}%"
+                self.progress_label['text'] = f"视频 {self.current_playlist_index}/{self.total_playlist_videos} 下载中 {percentage:.1f}%"
                 self.progress['value'] = percentage
             self.root.update_idletasks()
             if self.download_start_time:
                 elapsed_time = time.time() - self.download_start_time
                 elapsed_time_str = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
                 self.root.title(f"YouTube 下载器 - 视频 {self.current_playlist_index}/{self.total_playlist_videos} - 已用时间: {elapsed_time_str}")
-        elif d['status'] == 'finished' and d.get('postprocessor'):
-            # 格式转换中
-            pp_progress = d.get('postprocessor_progress', 0) * 100
-            self.progress_label['text'] = f"视频 {self.current_playlist_index}/{self.total_playlist_videos} - 转换中 {pp_progress:.0f}%"
-            self.progress['value'] = pp_progress
+        elif d['status'] == 'finished':
+            # 下载完成，准备转换格式
+            self.progress_label['text'] = f"视频 {self.current_playlist_index}/{self.total_playlist_videos} 下载完成，准备转换..."
+            self.progress['value'] = 100
             self.root.update_idletasks()
 
     # 开始解析视频线程

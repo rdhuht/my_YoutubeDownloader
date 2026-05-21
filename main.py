@@ -205,14 +205,14 @@ class YouTubeDownloader:
 
         # 定义列
         self.playlist_tree['columns'] = ('select', 'index', 'title', 'duration', 'size')
-        self.playlist_tree.column('select', width=50, anchor='center')
-        self.playlist_tree.column('index', width=50, anchor='center')
-        self.playlist_tree.column('title', width=400)
+        self.playlist_tree.column('select', width=60, anchor='center')
+        self.playlist_tree.column('index', width=60, anchor='center')
+        self.playlist_tree.column('title', width=350)
         self.playlist_tree.column('duration', width=100, anchor='center')
         self.playlist_tree.column('size', width=100, anchor='center')
 
         # 设置表头
-        self.playlist_tree.heading('select', text='选择')
+        self.playlist_tree.heading('select', text='✓')
         self.playlist_tree.heading('index', text='序号')
         self.playlist_tree.heading('title', text='标题')
         self.playlist_tree.heading('duration', text='时长')
@@ -386,8 +386,8 @@ class YouTubeDownloader:
                 elapsed_time_str = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
                 self.root.title(f"YouTube 下载器 - 已用时间: {elapsed_time_str}")
         elif d['status'] == 'finished':
-            # 下载完成，准备转换格式
-            self.progress_label['text'] = "下载完成，准备转换格式..."
+            # 下载完成，开始转换格式
+            self.progress_label['text'] = "下载完成，正在转换格式..."
             self.progress['value'] = 100
             self.root.update_idletasks()
 
@@ -406,8 +406,8 @@ class YouTubeDownloader:
                 elapsed_time_str = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
                 self.root.title(f"YouTube 下载器 - 视频 {self.current_playlist_index}/{self.total_playlist_videos} - 已用时间: {elapsed_time_str}")
         elif d['status'] == 'finished':
-            # 下载完成，准备转换格式
-            self.progress_label['text'] = f"视频 {self.current_playlist_index}/{self.total_playlist_videos} 下载完成，准备转换..."
+            # 下载完成，开始转换格式
+            self.progress_label['text'] = f"视频 {self.current_playlist_index}/{self.total_playlist_videos} 下载完成，正在转换..."
             self.progress['value'] = 100
             self.root.update_idletasks()
 
@@ -503,18 +503,16 @@ class YouTubeDownloader:
                 values[4] = size_str
                 self.playlist_tree.item(iid, values=values)
 
-    # Treeview点击事件
+    # Treeview点击事件 - 点击任意列都可以切换选择
     def on_tree_click(self, event):
         region = self.playlist_tree.identify_region(event.x, event.y)
         if region == 'cell':
-            column = self.playlist_tree.identify_column(event.x)
-            if column == '#1':  # 选择列
-                item = self.playlist_tree.identify_row(event.y)
-                if item and item in self.check_vars:
-                    var = self.check_vars[item]
-                    var.set(1 - var.get())
-                    self.update_tree_selections()
-                    return "break"
+            item = self.playlist_tree.identify_row(event.y)
+            if item and item in self.check_vars:
+                var = self.check_vars[item]
+                var.set(1 - var.get())
+                self.update_tree_selections()
+                return "break"
 
     # 获取选中的视频
     def get_selected_videos(self):

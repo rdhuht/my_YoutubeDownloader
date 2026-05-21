@@ -181,6 +181,14 @@ class YouTubeDownloader:
         self.playlist_quality_combobox = ttk.Combobox(self.playlist_quality_frame, state="readonly", width=15)
         self.playlist_quality_combobox.pack(side=tk.LEFT, padx=5)
 
+        # 播放列表字幕/配音选择
+        self.playlist_caption_frame = ttk.Frame(self.playlist_tab)
+        self.playlist_caption_frame.pack(pady=5)
+        self.playlist_caption_label = ttk.Label(self.playlist_caption_frame, text="字幕/配音:", font=small_font)
+        self.playlist_caption_label.pack(side=tk.LEFT, padx=10)
+        self.playlist_caption_combobox = ttk.Combobox(self.playlist_caption_frame, state="readonly", width=15)
+        self.playlist_caption_combobox.pack(side=tk.LEFT, padx=5)
+
         # 下载选中视频按钮
         self.btn_download_selected = ttk.Button(self.playlist_btn_frame, text="下载选中视频", command=self.start_download_selected_thread, bootstyle='danger', width=15)
         self.btn_download_selected.pack(side=tk.LEFT, padx=20)
@@ -534,6 +542,16 @@ class YouTubeDownloader:
         if qualities:
             self.playlist_quality_combobox.current(0)
 
+        # 获取字幕/配音选项
+        subtitles = set()
+        for entry in self.playlist_entries:
+            if entry and entry.get('subtitles'):
+                subtitles.update(entry.get('subtitles', {}).keys())
+        subtitle_list = list(subtitles)
+        self.playlist_caption_combobox['values'] = subtitle_list
+        if subtitle_list:
+            self.playlist_caption_combobox.current(0)
+
         # 填充Treeview
         for i, entry in enumerate(self.playlist_entries):
             if entry is None:
@@ -684,6 +702,13 @@ class YouTubeDownloader:
                     'key': 'FFmpegVideoConvertor',
                     'preferedformat': 'mp4',
                 }]
+
+            # 添加字幕设置
+            selected_subtitle = self.playlist_caption_combobox.get()
+            if selected_subtitle:
+                ydl_opts['subtitleslangs'] = [selected_subtitle]
+                ydl_opts['writesubtitles'] = True
+                ydl_opts['subtitlesformat'] = 'srt'
 
             try:
                 with youtube_dl.YoutubeDL(ydl_opts) as ydl:

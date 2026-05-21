@@ -161,6 +161,7 @@ class YouTubeDownloader:
         self.quality_label.pack(side=tk.LEFT, padx=10)
         self.quality_combobox = ttk.Combobox(self.quality_frame, state="readonly", width=15)
         self.quality_combobox.pack(side=tk.LEFT, padx=5)
+        self.quality_combobox.bind('<<ComboboxSelected>>', self.on_quality_changed)
 
         # 字幕/配音选择
         self.caption_frame = ttk.Frame(root)
@@ -378,6 +379,25 @@ class YouTubeDownloader:
             values = list(self.playlist_tree.item(iid, 'values'))
             values[0] = "√" if var.get() else ""
             self.playlist_tree.item(iid, values=values)
+
+    # 质量选择变化时更新大小
+    def on_quality_changed(self, event=None):
+        quality_text = self.quality_combobox.get()
+        if not quality_text or not self.playlist_entries:
+            return
+
+        selected_height = int(quality_text.replace('p', ''))
+
+        for iid in self.check_vars.keys():
+            index = int(self.playlist_tree.item(iid, 'values')[1]) - 1
+            if index < len(self.playlist_entries):
+                entry = self.playlist_entries[index]
+                height = entry.get('height') or selected_height
+                duration = entry.get('duration') or 300
+                size_str = estimate_size(height, duration)
+                values = list(self.playlist_tree.item(iid, 'values'))
+                values[4] = size_str
+                self.playlist_tree.item(iid, values=values)
 
     # Treeview点击事件
     def on_tree_click(self, event):

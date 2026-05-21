@@ -53,6 +53,7 @@ class YouTubeDownloader:
         self.playlist_entries = []
         self.format_map = {}
         self.formats = []
+        self.playlist_format_map = {}
 
         # 设置字体（优先使用支持中文的字体）
         try:
@@ -317,6 +318,21 @@ class YouTubeDownloader:
                 elapsed_time_str = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
                 self.root.title(f"YouTube 下载器 - 已用时间: {elapsed_time_str}")
 
+    # 显示播放列表下载进度
+    def show_playlist_progress(self, d):
+        if d['status'] == 'downloading':
+            downloaded = d.get('downloaded_bytes', 0) or 0
+            total = d.get('total_bytes') or d.get('totalbyte') or 0
+            if total and total > 0:
+                percentage = min(downloaded / total * 100, 100)
+                self.progress_label['text'] = f"视频 {self.current_playlist_index}/{self.total_playlist_videos} - {percentage:.2f}%"
+                self.progress['value'] = percentage
+            self.root.update_idletasks()
+            if self.download_start_time:
+                elapsed_time = time.time() - self.download_start_time
+                elapsed_time_str = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
+                self.root.title(f"YouTube 下载器 - 视频 {self.current_playlist_index}/{self.total_playlist_videos} - 已用时间: {elapsed_time_str}")
+
     # 开始解析视频线程
     def start_parse_video_thread(self):
         self.progress['value'] = 0
@@ -522,6 +538,7 @@ class YouTubeDownloader:
         for item in self.playlist_tree.get_children():
             self.playlist_tree.delete(item)
         self.check_vars.clear()
+        self.playlist_format_map = {}  # 保存播放列表的格式映射
 
         # 获取所有视频的质量选项
         qualities = []
@@ -553,7 +570,7 @@ class YouTubeDownloader:
                     quality_text = f"{height}p - {size_str}"
                     if quality_text not in qualities:
                         qualities.append(quality_text)
-                        format_map[quality_text] = format_id
+                        self.playlist_format_map[quality_text] = format_id
 
         self.playlist_quality_combobox['values'] = qualities
         if qualities:
@@ -672,20 +689,14 @@ class YouTubeDownloader:
             return
 
         # 获取format_id
-        format_id = None
-        for q, fid in self.format_map.items() if hasattr(self, 'format_map') else []:
-            if q == quality_text:
-                format_id = fid
-                break
-
-        if not format_id and self.playlist_quality_combobox['values']:
-            format_id = self.playlist_quality_combobox['values'][0].split(' - ')[0] if self.playlist_quality_combobox['values'] else None
+        format_id = self.playlist_format_map.get(quality_text)
 
         self.is_downloading = True
         self.download_start_time = time.time()
         self.button_cancel.config(state='normal')
 
-        total = len(selected_entries)
+        self.total_playlist_videos = len(selected_entries)
+        self.current_playlist_index = 0
         success_count = 0
         fail_count = 0
 
@@ -693,6 +704,7 @@ class YouTubeDownloader:
             if not self.is_downloading:
                 break
 
+            self.current_playlist_index = i + 1
             video_url = entry.get('url') or entry.get('webpage_url')
             if not video_url:
                 fail_count += 1
@@ -708,7 +720,7 @@ class YouTubeDownloader:
             ydl_opts = {
                 'format': format_str,
                 'outtmpl': os.path.join(self.download_path, '%(title)s.%(ext)s'),
-                'progress_hooks': [self.show_progress],
+                'progress_hooks': [self.show_playlist_progress],
             }
 
             if USER_PROXY:

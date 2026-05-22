@@ -23,6 +23,42 @@ def check_ffmpeg():
 FFMPEG_AVAILABLE = check_ffmpeg()
 print(f"FFmpeg available: {FFMPEG_AVAILABLE}")
 
+class FFmpegProgressLogger:
+    def __init__(self, app_instance, is_playlist=False):
+        self.app = app_instance
+        self.is_playlist = is_playlist
+        self._progress_pattern = re.compile(r'time=(\d+):(\d{2}):(\d{2}\.\d+)')
+        self._duration = 0
+
+    def debug(self, info):
+        if 'Duration:' in info:
+            try:
+                match = re.search(r'(\d+):(\d{2}):(\d{2})', info)
+                if match:
+                    h, m, s = int(match.group(1)), int(match.group(2)), int(match.group(3))
+                    self._duration = h * 3600 + m * 60 + s
+            except:
+                pass
+        if 'time=' in info:
+            match = self._progress_pattern.search(info)
+            if match and self._duration > 0:
+                h, m, s = int(match.group(1)), int(match.group(2)), float(match.group(3))
+                current_time = h * 3600 + m * 60 + s
+                percentage = min(current_time / self._duration * 100, 99)
+                if self.is_playlist:
+                    self.app.progress['value'] = percentage
+                    self.app.progress_label['text'] = f"视频 {self.app.current_playlist_index}/{self.app.total_playlist_videos} 转换中 {percentage:.1f}%"
+                else:
+                    self.app.progress['value'] = percentage
+                    self.app.progress_label['text'] = f"转换中 {percentage:.1f}%"
+                self.app.root.update_idletasks()
+
+    def warning(self, info):
+        pass
+
+    def error(self, info):
+        pass
+
 # 用户代理配置 - 默认使用本地代理
 USER_PROXY = "http://127.0.0.1:7897"
 
@@ -129,6 +165,10 @@ LANGUAGE_MAP = {
 
 def get_language_display(code):
     return LANGUAGE_MAP.get(code, code)
+
+def subtitle_sort_key(display_name):
+    priority = {'简体中文': 0, '繁体中文': 1, 'English': 2}
+    return (priority.get(display_name, 3), display_name)
 
 def get_language_code(display):
     for code, name in LANGUAGE_MAP.items():
@@ -238,29 +278,24 @@ class YouTubeDownloader:
         self.btn_deselect_all = ttk.Button(self.btn_frame, text="取消全选", command=self.deselect_all_videos, bootstyle='info', width=10)
         self.btn_deselect_all.pack(side=tk.LEFT, padx=5)
 
-        # 下载质量选择
-        self.quality_frame = ttk.Frame(root)
-        self.quality_frame.pack(pady=5)
-        self.quality_label = ttk.Label(self.quality_frame, text="下载质量:", font=small_font)
-        self.quality_label.pack(side=tk.LEFT, padx=10)
-        self.quality_combobox = ttk.Combobox(self.quality_frame, state="readonly", width=15)
+        # 下载质量、字幕、输出格式选择（放在同一行）
+        self.options_frame = ttk.Frame(root)
+        self.options_frame.pack(pady=5)
+
+        self.quality_label = ttk.Label(self.options_frame, text="下载质量:", font=small_font)
+        self.quality_label.pack(side=tk.LEFT, padx=(10, 2))
+        self.quality_combobox = ttk.Combobox(self.options_frame, state="readonly", width=15)
         self.quality_combobox.pack(side=tk.LEFT, padx=5)
         self.quality_combobox.bind('<<ComboboxSelected>>', self.on_quality_changed)
 
-        # 字幕选择
-        self.caption_frame = ttk.Frame(root)
-        self.caption_frame.pack(pady=5)
-        self.caption_label = ttk.Label(self.caption_frame, text="字幕:", font=small_font)
-        self.caption_label.pack(side=tk.LEFT, padx=10)
-        self.caption_combobox = ttk.Combobox(self.caption_frame, state="readonly", width=15)
+        self.caption_label = ttk.Label(self.options_frame, text="字幕:", font=small_font)
+        self.caption_label.pack(side=tk.LEFT, padx=(10, 2))
+        self.caption_combobox = ttk.Combobox(self.options_frame, state="readonly", width=15)
         self.caption_combobox.pack(side=tk.LEFT, padx=5)
 
-        # 视频格式选择
-        self.format_frame = ttk.Frame(root)
-        self.format_frame.pack(pady=5)
-        self.format_label = ttk.Label(self.format_frame, text="输出格式:", font=small_font)
-        self.format_label.pack(side=tk.LEFT, padx=10)
-        self.format_combobox = ttk.Combobox(self.format_frame, state="readonly", width=10)
+        self.format_label = ttk.Label(self.options_frame, text="输出格式:", font=small_font)
+        self.format_label.pack(side=tk.LEFT, padx=(10, 2))
+        self.format_combobox = ttk.Combobox(self.options_frame, state="readonly", width=10)
         self.format_combobox['values'] = ['mp4', 'mkv', 'webm', 'avi', '不转换']
         self.format_combobox.current(0)
         self.format_combobox.pack(side=tk.LEFT, padx=5)
@@ -390,6 +425,7 @@ class YouTubeDownloader:
             self.download_phase = 'converting'
             self.conversion_start_time = time.time()
             self.progress['value'] = 100
+            self.progress_label['text'] = "转换格式中..."
             self.animate_conversion_progress()
 
     # 转换进度动画
@@ -402,7 +438,6 @@ class YouTubeDownloader:
             self.progress['value'] = 50
         else:
             self.progress['value'] = 90
-        self.progress_label['text'] = "转换中..."
         self.root.update_idletasks()
         # 每200ms更新一次
         if self.download_phase == 'converting' and self.is_downloading:
@@ -427,6 +462,7 @@ class YouTubeDownloader:
             self.download_phase = 'converting'
             self.conversion_start_time = time.time()
             self.progress['value'] = 100
+            self.progress_label['text'] = f"视频 {self.current_playlist_index}/{self.total_playlist_videos} 转换格式中..."
             self.animate_playlist_conversion_progress()
 
     # 播放列表转换进度动画
@@ -438,7 +474,6 @@ class YouTubeDownloader:
             self.progress['value'] = 50
         else:
             self.progress['value'] = 90
-        self.progress_label['text'] = f"视频 {self.current_playlist_index}/{self.total_playlist_videos} 转换中..."
         self.root.update_idletasks()
         if self.download_phase == 'converting' and self.is_downloading:
             self.root.after(200, self.animate_playlist_conversion_progress)
@@ -609,7 +644,7 @@ class YouTubeDownloader:
 
         # 字幕选项
         subtitles = info_dict.get('subtitles', {})
-        subtitle_list = [get_language_display(k) for k in subtitles.keys()] if subtitles else ['无']
+        subtitle_list = sorted([get_language_display(k) for k in subtitles.keys()], key=subtitle_sort_key) if subtitles else ['无']
         self.caption_combobox['values'] = subtitle_list
         self.caption_combobox.current(0)
 
@@ -645,7 +680,7 @@ class YouTubeDownloader:
         for entry in self.playlist_entries:
             if entry and entry.get('subtitles'):
                 subtitles.update(entry.get('subtitles', {}).keys())
-        subtitle_list = [get_language_display(k) for k in subtitles] if subtitles else ['无']
+        subtitle_list = sorted([get_language_display(k) for k in subtitles], key=subtitle_sort_key) if subtitles else ['无']
         self.caption_combobox['values'] = subtitle_list
         self.caption_combobox.current(0)
 
@@ -725,6 +760,7 @@ class YouTubeDownloader:
                 'key': 'FFmpegVideoConvertor',
                 'preferedformat': output_format,
             }]
+            ydl_opts['logger'] = FFmpegProgressLogger(self, is_playlist=False)
 
         selected_subtitle = self.caption_combobox.get()
         if selected_subtitle and selected_subtitle != '无':
@@ -799,6 +835,7 @@ class YouTubeDownloader:
                     'key': 'FFmpegVideoConvertor',
                     'preferedformat': 'mp4',
                 }]
+                ydl_opts['logger'] = FFmpegProgressLogger(self, is_playlist=True)
 
             if selected_subtitle and selected_subtitle != '无':
                 ydl_opts['subtitleslangs'] = [selected_subtitle]

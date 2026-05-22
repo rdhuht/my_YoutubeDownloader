@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - '**.py'
-      - 'version.txt'
 
 jobs:
   tag:
@@ -16,29 +13,21 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get latest tag
-        id: get_tag
+      - name: Get latest tag and bump
+        id: bump
         run: |
           git fetch --tags
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "Latest tag: $LATEST_TAG"
-          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
-
-      - name: Bump version
-        id: bump_version
-        run: |
-          CURRENT=${{ steps.get_tag.outputs.latest_tag }}
-          # Remove 'v' prefix if present
-          VERSION=${CURRENT#v}
-          # Split into parts
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
-          # Increment patch
-          PATCH=$((PATCH + 1))
-          NEW_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+          CURRENT_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.0")
+          echo "Current tag: $CURRENT_TAG"
+          # Remove 'v' prefix
+          VERSION=${CURRENT_TAG#v}
+          # Increment patch version
+          IFS='.' read -r MAJ MIN PATCH <<< "$VERSION"
+          NEW_TAG="v${MAJ}.${MIN}.$((PATCH + 1))"
           echo "New tag: $NEW_TAG"
           echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
 
-      - name: Create tag
+      - name: Create and push tag
         run: |
-          git tag ${{ steps.bump_version.outputs.new_tag }}
-          git push origin ${{ steps.bump_version.outputs.new_tag }}
+          git tag ${{ steps.bump.outputs.new_tag }}
+          git push origin ${{ steps.bump.outputs.new_tag }}

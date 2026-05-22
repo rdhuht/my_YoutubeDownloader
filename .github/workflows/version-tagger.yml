@@ -17,6 +17,7 @@ jobs:
           fetch-depth: 0
 
       - name: Bump version and create tag
-        uses: anothrNick/github-tag-action@v1
+        uses: anothrNick/github-tag-action@1.75.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          release_branches: main

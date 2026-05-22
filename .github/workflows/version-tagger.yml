@@ -16,7 +16,29 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Bump version and create tag
-        uses: tvidal87/github-tag-action@latest
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Get latest tag
+        id: get_tag
+        run: |
+          git fetch --tags
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest tag: $LATEST_TAG"
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+
+      - name: Bump version
+        id: bump_version
+        run: |
+          CURRENT=${{ steps.get_tag.outputs.latest_tag }}
+          # Remove 'v' prefix if present
+          VERSION=${CURRENT#v}
+          # Split into parts
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          # Increment patch
+          PATCH=$((PATCH + 1))
+          NEW_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "New tag: $NEW_TAG"
+          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+
+      - name: Create tag
+        run: |
+          git tag ${{ steps.bump_version.outputs.new_tag }}
+          git push origin ${{ steps.bump_version.outputs.new_tag }}

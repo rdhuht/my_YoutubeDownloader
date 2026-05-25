@@ -388,7 +388,7 @@ class YouTubeDownloader:
         tk.Button(btn_frame, text="取消", command=dialog.destroy, bg="#5c5c5c", fg="white", relief="flat", font=self.default_font).pack(side=tk.LEFT, padx=5, pady=5, ipadx=10)
 
     def show_about(self):
-        messagebox.showinfo("关于", "YouTube 下载器 v4.0\n\n支持单视频和播放列表下载")
+        messagebox.showinfo("关于", "YouTube 下载器 v1.4.0\n\n支持单视频和播放列表下载")
 
     def show_help(self):
         help_text = """YouTube 下载器 使用说明

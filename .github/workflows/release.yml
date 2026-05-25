@@ -27,7 +27,7 @@ jobs:
 
       - name: Build with PyInstaller
         run: |
-          pyinstaller --onefile --name "YouTubeDownloader" --icon="imgs\logo.ico" main.py
+          pyinstaller --onefile --name "YouTubeDownloader" --icon="imgs/logo.ico" --distpath "dist" main.py
         shell: cmd
 
       - name: Show build output

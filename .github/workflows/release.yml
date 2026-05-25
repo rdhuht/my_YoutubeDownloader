@@ -27,7 +27,7 @@ jobs:
 
       - name: Build with PyInstaller
         run: |
-          pyinstaller --onefile --name "YouTubeDownloader" main.py
+          pyinstaller --onefile --name "YouTubeDownloader" --icon="imgs\logo.ico" main.py
         shell: cmd
 
       - name: Show build output
@@ -61,7 +61,7 @@ jobs:
 
       - name: Build with PyInstaller
         run: |
-          pyinstaller --onefile --name "YouTubeDownloader" main.py
+          pyinstaller --onefile --name "YouTubeDownloader" --icon="imgs/logo.icns" main.py
 
       - name: Show build output
         run: |
@@ -93,7 +93,7 @@ jobs:
 
       - name: Build with PyInstaller
         run: |
-          pyinstaller --onefile --name "YouTubeDownloader" main.py
+          pyinstaller --onefile --name "YouTubeDownloader" --icon="imgs/logo.png" main.py
 
       - name: Show build output
         run: |

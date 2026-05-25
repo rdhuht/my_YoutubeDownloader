@@ -182,6 +182,11 @@ class YouTubeDownloader:
         self.root = root
         self.root.title("YouTube 下载器")
         self.root.minsize(width=800, height=500)
+        # 设置窗口图标
+        try:
+            self.root.iconbitmap('imgs/logo.ico')
+        except:
+            pass
         self.is_downloading = False
         self.download_start_time = None
         self.current_url = None
@@ -190,6 +195,7 @@ class YouTubeDownloader:
         self.format_map = {}
         self.formats = []
         self.quality_options = []  # 简化的质量选项列表
+        self.last_auto_paste_url = None  # 记录上次自动粘贴的URL
 
         # 设置字体（优先使用支持中文的字体）
         try:
@@ -332,9 +338,11 @@ class YouTubeDownloader:
     # 输入框获得焦点或点击时检查剪贴板
     def on_entry_focus(self, event):
         clipboard_url = get_url_from_clipboard(self.root)
-        if clipboard_url and not self.entry_url.get().strip():
+        # 仅当剪贴板有URL、且与上次粘贴的不同、且不是当前已显示的URL时，才自动粘贴
+        if clipboard_url and clipboard_url != self.last_auto_paste_url and clipboard_url != self.entry_url.get().strip():
             self.entry_url.delete(0, tk.END)
             self.entry_url.insert(0, clipboard_url)
+            self.last_auto_paste_url = clipboard_url
             self.root.title(f"YouTube 下载器 - 已从剪贴板获取URL")
 
     def on_entry_click(self, event):

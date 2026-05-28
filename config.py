@@ -2,7 +2,7 @@
 import re
 import subprocess
 
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 
 _proxy = "http://127.0.0.1:7897"
 

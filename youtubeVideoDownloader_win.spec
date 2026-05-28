@@ -4,7 +4,7 @@
 a = Analysis(
     ['main.py'],
     pathex=['.venv\Lib\site-packages', 'C:\\Users\\10833\\AppData\\Local\\Microsoft\\Windows\\Fonts\\AlibabaPuHuiTi-3-75-SemiBold.ttf'],
-    binaries=[('ffmpeg/ffmpeg.exe', '.')],
+    binaries=[],
     datas=[],
     hiddenimports=[],
     hookspath=[],

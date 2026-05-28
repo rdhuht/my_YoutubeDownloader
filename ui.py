@@ -9,7 +9,7 @@ import tkinter.font as tkFont
 import threading
 import webbrowser
 
-from config import get_proxy, set_proxy, FFMPEG_AVAILABLE
+from config import get_proxy, set_proxy, FFMPEG_AVAILABLE, VERSION
 from utils import get_url_from_clipboard
 from downloader import load_video_msg, download_single, download_multi
 
@@ -17,7 +17,7 @@ from downloader import load_video_msg, download_single, download_multi
 class YouTubeDownloader:
     def __init__(self, root):
         self.root = root
-        self.root.title("YouTube 下载器")
+        self.root.title(f"YouTube 下载器 v{VERSION}")
         self.root.minsize(width=900, height=550)
         try:
             self.root.iconbitmap('imgs/logo.ico')
@@ -167,7 +167,6 @@ class YouTubeDownloader:
 
     def update_status(self, text):
         self._status_text = text
-        self.root.title("YouTube 下载器")
         self.status_bar['text'] = text
 
     def on_entry_focus(self, event):
@@ -225,7 +224,7 @@ class YouTubeDownloader:
         tk.Button(btn_frame, text="取消", command=dialog.destroy, bg="#5c5c5c", fg="white", relief="flat", font=self.default_font).pack(side=tk.LEFT, padx=5, pady=5, ipadx=10)
 
     def show_about(self):
-        messagebox.showinfo("关于", "YouTube 下载器 v1.4.0\n\n支持单视频和播放列表下载")
+        messagebox.showinfo("关于", f"YouTube 下载器 v{VERSION}\n\n支持单视频和播放列表下载")
 
     def show_help(self):
         help_text = """YouTube 下载器 使用说明

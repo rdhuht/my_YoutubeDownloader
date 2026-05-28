@@ -2,6 +2,8 @@
 import re
 import subprocess
 
+VERSION = "1.4.0"
+
 _proxy = "http://127.0.0.1:7897"
 
 def get_proxy():

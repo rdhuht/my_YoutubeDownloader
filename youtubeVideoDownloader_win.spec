@@ -1,11 +1,27 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import os
+import sys
+
+block_cipher = None
+
+# Locate ttkbootstrap's resource folders so they end up next to the
+# executable. ttkbootstrap reads theme JSON, icon fonts and other assets via
+# `importlib.resources` at runtime — bundling them under the same package
+# layout is required.
+_ttk_root = os.path.dirname(__import__('ttkbootstrap').__file__)
+ttk_themes_dir = os.path.join(_ttk_root, 'themes')
+ttk_assets_dir = os.path.join(_ttk_root, 'assets')
 
 a = Analysis(
     ['main.py'],
-    pathex=['.venv\Lib\site-packages', 'C:\\Users\\10833\\AppData\\Local\\Microsoft\\Windows\\Fonts\\AlibabaPuHuiTi-3-75-SemiBold.ttf'],
+    pathex=[],
     binaries=[],
-    datas=[],
+    datas=[
+        ('imgs/logo.ico', 'imgs'),
+        (ttk_themes_dir, 'ttkbootstrap/themes'),
+        (ttk_assets_dir, 'ttkbootstrap/assets'),
+    ],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -34,5 +50,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['imgs\\logo.ico'],
+    icon=['imgs/logo.ico'],
 )

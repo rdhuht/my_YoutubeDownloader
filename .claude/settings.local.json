@@ -6,7 +6,8 @@
       "Bash(git commit -m ' *)",
       "Bash(git push *)",
       "Bash(git config *)",
-      "Skill(update-config)"
+      "Skill(update-config)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }

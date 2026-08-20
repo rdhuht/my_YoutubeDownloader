@@ -10,4 +10,4 @@ setuptools
 soupsieve
 ttkbootstrap
 # pytube
-yt_dlp
+yt_dlp>=2026.07.14

@@ -1,12 +1,93 @@
 """Download logic and video loading functionality."""
 import os
 import time
+import tkinter as tk
 from tkinter import messagebox
 import yt_dlp as youtube_dl
 
 from config import get_proxy, FFMPEG_AVAILABLE
 from utils import estimate_size, get_language_display, get_language_code, subtitle_sort_key
 from ffmpeg import FFmpegProgressLogger
+
+
+# yt-dlp 2025/2026 no longer reliably downloads 1080p+ YouTube videos via the
+# default `web`/`ios`/`android` clients because they now require a PO Token.
+# Pin to the TV / Web Safari / Mobile-Web clients which still serve anonymous
+# streams, and skip the (now broken) player config fetch.
+YOUTUBE_EXTRACTOR_ARGS = {
+    'youtube': {
+        'player_client': ['tv', 'web_safari', 'mweb'],
+        'player_skip': ['configs', 'translated_subs'],
+    }
+}
+
+# Stable, well-supported format sort: prefer lower resolution (we already cap
+# by height), prefer mp4/m4a wrappers, then smaller filesize, then bitrate.
+FORMAT_SORT = ['res', 'ext:mp4:m4a', 'size', 'br']
+
+# Output formats that can be reached by stream-copy remux (no transcode).
+REMUX_FRIENDLY = {'mp4', 'mkv', 'webm'}
+
+
+def _build_ydl_opts(app, *, for_download, output_format, height,
+                    selected_subtitle, progress_hook_fn=None, logger=None):
+    """Build the ydl_opts dict shared by parse, single, and batch downloads."""
+    opts = {
+        'quiet': True,
+        'noprogress': True,
+        'extractor_args': dict(YOUTUBE_EXTRACTOR_ARGS),
+        'format_sort': list(FORMAT_SORT),
+        # Height-bounded bestvideo+bestaudio with a combined "best" fallback.
+        # Drop the strict `ext=mp4`/`ext=m4a` filter — YouTube frequently only
+        # offers webm/opus at the chosen resolution.
+        'format': f'bestvideo[height<={height}]+bestaudio/best[height<={height}]',
+    }
+
+    proxy = get_proxy()
+    if proxy:
+        opts['proxy'] = proxy
+
+    if not for_download:
+        opts['skip_download'] = True
+        return opts
+
+    opts['outtmpl'] = os.path.join(app.download_path, '%(title)s.%(ext)s')
+
+    if progress_hook_fn:
+        opts['progress_hooks'] = [progress_hook_fn]
+
+    # Output container selection. `merge_output_format` is the canonical key
+    # as of yt-dlp 2025.06.09 — the old `preferedformat` typo on
+    # FFmpegVideoConvertor is deprecated.
+    if output_format and output_format != '不转换' and FFMPEG_AVAILABLE:
+        opts['merge_output_format'] = output_format
+        if output_format in REMUX_FRIENDLY:
+            # Stream-copy remux — fast, lossless.
+            opts['postprocessors'] = [{
+                'key': 'FFmpegVideoRemuxer',
+                'preferedformat': output_format,
+            }]
+        else:
+            # avi (and any non-remux target) requires a real transcode.
+            opts['postprocessors'] = [{
+                'key': 'FFmpegVideoConvertor',
+                'preferedformat': output_format,
+            }]
+        if logger is not None:
+            opts['logger'] = logger
+
+    if selected_subtitle and selected_subtitle != '无':
+        lang_code = get_language_code(selected_subtitle)
+        if lang_code == 'zh':
+            lang_code = 'zh-Hans'
+        if lang_code in ('zh-Hans', 'zh-CN', 'zh'):
+            opts['subtitleslangs'] = ['zh-Hans', 'zh-CN', 'zh']
+        else:
+            opts['subtitleslangs'] = [lang_code]
+        opts['writesubtitles'] = True
+        opts['subtitlesformat'] = 'srt'
+
+    return opts
 
 
 def load_video_msg(app):
@@ -18,13 +99,12 @@ def load_video_msg(app):
         return
     try:
         app.current_url = url
-        ydl_opts = {
-            'quiet': True,
-            'skip_download': True,
-        }
-        proxy = get_proxy()
-        if proxy:
-            ydl_opts['proxy'] = proxy
+        # Parse-only; default quality is a placeholder — we don't actually
+        # restrict formats here, only at download time.
+        ydl_opts = _build_ydl_opts(
+            app, for_download=False, output_format=None, height=1080,
+            selected_subtitle=None,
+        )
 
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
             info_dict = ydl.extract_info(url, download=False)
@@ -122,7 +202,7 @@ def load_treeview(app):
         size_str = estimate_size(height, duration_val)
 
         iid = app.playlist_tree.insert('', 'end', values=("√", i + 1, title, duration_str, size_str, "", ""))
-        var = app.IntVar(value=1)
+        var = tk.IntVar(value=1)
         app.check_vars[iid] = var
         app.tree_iid_map[iid] = i
 
@@ -130,34 +210,48 @@ def load_treeview(app):
 
 
 def show_progress(app, d):
+    # Belt-and-braces: if the user pressed cancel, abort from inside the hook.
+    if app.cancel_event.is_set():
+        raise Exception("Download cancelled")
     if d['status'] == 'downloading':
         downloaded = d.get('downloaded_bytes', 0) or 0
-        total = d.get('total_bytes') or d.get('totalbyte') or 0
+        total = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
         if total and total > 0:
             percentage = min(downloaded / total * 100, 100)
             app.update_video_progress_text(app.current_download_index, f"{percentage:.0f}%", 'downloading')
-        app.root.update_idletasks()
         if app.download_start_time:
             elapsed_time = time.time() - app.download_start_time
             elapsed_time_str = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
-            app.update_status(f"下载中... {elapsed_time_str}")
+            speed = d.get('speed')
+            eta = d.get('eta')
+            speed_str = f" {speed/1024/1024:.1f}MB/s" if speed else ""
+            eta_str = f" ETA {int(eta)}s" if eta is not None else ""
+            app.update_status(f"下载中... {elapsed_time_str}{speed_str}{eta_str}")
     elif d['status'] == 'finished' and d.get('postprocessor'):
         app.download_phase = 'converting'
         app.update_video_convert_status(app.current_download_index, "转换中")
 
 
 def show_playlist_progress(app, d):
+    if app.cancel_event.is_set():
+        raise Exception("Download cancelled")
     if d['status'] == 'downloading':
         downloaded = d.get('downloaded_bytes', 0) or 0
-        total = d.get('total_bytes') or d.get('totalbyte') or 0
+        total = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
         if total and total > 0:
             percentage = min(downloaded / total * 100, 100)
             app.update_video_progress_text(app.current_download_index, f"{percentage:.0f}%", 'downloading')
-        app.root.update_idletasks()
         if app.download_start_time:
             elapsed_time = time.time() - app.download_start_time
             elapsed_time_str = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
-            app.update_status(f"视频 {app.current_playlist_index}/{app.total_playlist_videos} 下载中... {elapsed_time_str}")
+            speed = d.get('speed')
+            eta = d.get('eta')
+            speed_str = f" {speed/1024/1024:.1f}MB/s" if speed else ""
+            eta_str = f" ETA {int(eta)}s" if eta is not None else ""
+            app.update_status(
+                f"视频 {app.current_playlist_index}/{app.total_playlist_videos} 下载中... "
+                f"{elapsed_time_str}{speed_str}{eta_str}"
+            )
     elif d['status'] == 'finished' and d.get('postprocessor'):
         app.download_phase = 'converting'
         app.update_video_convert_status(app.current_download_index, "转换中")
@@ -171,9 +265,10 @@ def download_single(app, entry):
         return
 
     height = int(quality_text.replace('p', ''))
-    format_str = f'bestvideo[height<={height}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={height}]+bestaudio/best'
+    output_format = app.format_combobox.get()
+    selected_subtitle = app.caption_combobox.get()
 
-    app.is_downloading = True
+    app.cancel_event.clear()
     app.download_start_time = time.time()
     app.download_phase = 'downloading'
     app.root.after(0, lambda: app.button_cancel.config(state='normal'))
@@ -187,59 +282,46 @@ def download_single(app, entry):
     entry_index = app.playlist_entries.index(entry)
     app.current_download_index = entry_index
 
-    output_format = app.format_combobox.get()
-    use_converter = output_format != '不转换' and FFMPEG_AVAILABLE
-
-    ydl_opts = {
-        'format': format_str,
-        'outtmpl': os.path.join(app.download_path, '%(title)s.%(ext)s'),
-        'progress_hooks': [lambda d: show_progress(app, d)],
-    }
-
-    proxy = get_proxy()
-    if proxy:
-        ydl_opts['proxy'] = proxy
-
-    if use_converter:
-        ydl_opts['postprocessors'] = [{
-            'key': 'FFmpegVideoConvertor',
-            'preferedformat': output_format,
-        }]
-        ydl_opts['logger'] = FFmpegProgressLogger(app, is_playlist=False, entry_index=entry_index)
-
-    selected_subtitle = app.caption_combobox.get()
-    if selected_subtitle and selected_subtitle != '无':
-        lang_code = get_language_code(selected_subtitle)
-        if lang_code == 'zh':
-            lang_code = 'zh-Hans'
-        if lang_code in ['zh-Hans', 'zh-CN', 'zh']:
-            ydl_opts['subtitleslangs'] = ['zh-Hans', 'zh-CN', 'zh']
-        else:
-            ydl_opts['subtitleslangs'] = [lang_code]
-        ydl_opts['writesubtitles'] = True
-        ydl_opts['subtitlesformat'] = 'srt'
+    ydl_opts = _build_ydl_opts(
+        app, for_download=True, output_format=output_format, height=height,
+        selected_subtitle=selected_subtitle,
+        progress_hook_fn=lambda d: show_progress(app, d),
+        logger=FFmpegProgressLogger(
+            app, is_playlist=False, entry_index=entry_index,
+            video_duration=entry.get('duration'),
+        ),
+    )
 
     try:
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([video_url])
+            app._active_ydl = ydl
+            try:
+                if app.cancel_event.is_set():
+                    return
+                ydl.download([video_url])
+            finally:
+                app._active_ydl = None
         elapsed_time = time.time() - app.download_start_time
         elapsed_time_str = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
         app.set_video_result(entry_index, True)
-        app.update_video_convert_status(entry_index, "完成" if use_converter else "")
+        app.update_video_convert_status(entry_index, "完成" if output_format != '不转换' else "")
         app.update_status(f"下载完成! 耗时: {elapsed_time_str}")
         app.root.after(0, lambda: messagebox.showinfo("下载完成", "视频已成功下载。"))
         app.root.after(0, app.open_download_folder)
     except Exception as e:
         app.set_video_result(entry_index, False)
         app.update_video_convert_status(entry_index, "")
-        app.root.after(0, lambda: messagebox.showerror("下载错误", f"错误: {e}"))
-        app.update_status("下载失败")
+        if app.cancel_event.is_set():
+            app.update_status("下载已取消")
+            app.root.after(0, lambda: messagebox.showinfo("已取消", "下载已取消。"))
+        else:
+            app.root.after(0, lambda: messagebox.showerror("下载错误", f"错误: {e}"))
+            app.update_status("下载失败")
     finally:
-        app.is_downloading = False
-        app.root.after(0, app.enable_buttons)
         app.download_start_time = None
         app.current_download_index = None
         app.root.after(0, lambda: app.button_cancel.config(state='disabled'))
+        app.root.after(0, app.enable_buttons)
 
 
 def download_multi(app, selected_entries):
@@ -250,9 +332,10 @@ def download_multi(app, selected_entries):
         return
 
     height = int(quality_text.replace('p', ''))
-    format_str = f'bestvideo[height<={height}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<={height}]+bestaudio/best'
+    output_format = app.format_combobox.get()
+    selected_subtitle = app.caption_combobox.get()
 
-    app.is_downloading = True
+    app.cancel_event.clear()
     app.download_start_time = time.time()
     app.root.after(0, lambda: app.button_cancel.config(state='normal'))
 
@@ -261,14 +344,8 @@ def download_multi(app, selected_entries):
     success_count = 0
     fail_count = 0
 
-    selected_subtitle = app.caption_combobox.get()
-    output_format = app.format_combobox.get()
-    use_converter = output_format != '不转换' and FFMPEG_AVAILABLE
-
-    proxy = get_proxy()
-
     for i, entry in enumerate(selected_entries):
-        if not app.is_downloading:
+        if app.cancel_event.is_set():
             break
 
         app.current_playlist_index = i + 1
@@ -279,42 +356,30 @@ def download_multi(app, selected_entries):
 
         entry_index = app.playlist_entries.index(entry) if entry in app.playlist_entries else i
         app.current_download_index = entry_index
-
         app.update_status(f"下载第 {i+1}/{app.total_playlist_videos} 个视频...")
 
-        ydl_opts = {
-            'format': format_str,
-            'outtmpl': os.path.join(app.download_path, '%(title)s.%(ext)s'),
-            'progress_hooks': [lambda d: show_playlist_progress(app, d)],
-        }
-
-        if proxy:
-            ydl_opts['proxy'] = proxy
-
-        if use_converter:
-            ydl_opts['postprocessors'] = [{
-                'key': 'FFmpegVideoConvertor',
-                'preferedformat': 'mp4',
-            }]
-            ydl_opts['logger'] = FFmpegProgressLogger(app, is_playlist=True, entry_index=entry_index)
-
-        if selected_subtitle and selected_subtitle != '无':
-            lang_code = get_language_code(selected_subtitle)
-            if lang_code == 'zh':
-                lang_code = 'zh-Hans'
-            if lang_code in ['zh-Hans', 'zh-CN', 'zh']:
-                ydl_opts['subtitleslangs'] = ['zh-Hans', 'zh-CN', 'zh']
-            else:
-                ydl_opts['subtitleslangs'] = [lang_code]
-            ydl_opts['writesubtitles'] = True
-            ydl_opts['subtitlesformat'] = 'srt'
+        ydl_opts = _build_ydl_opts(
+            app, for_download=True, output_format=output_format, height=height,
+            selected_subtitle=selected_subtitle,
+            progress_hook_fn=lambda d: show_playlist_progress(app, d),
+            logger=FFmpegProgressLogger(
+                app, is_playlist=True, entry_index=entry_index,
+                video_duration=entry.get('duration'),
+            ),
+        )
 
         try:
             with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([video_url])
+                app._active_ydl = ydl
+                try:
+                    if app.cancel_event.is_set():
+                        break
+                    ydl.download([video_url])
+                finally:
+                    app._active_ydl = None
             success_count += 1
             app.set_video_result(entry_index, True)
-            app.update_video_convert_status(entry_index, "完成" if use_converter else "")
+            app.update_video_convert_status(entry_index, "完成" if output_format != '不转换' else "")
         except Exception as e:
             fail_count += 1
             app.set_video_result(entry_index, False)
@@ -323,12 +388,19 @@ def download_multi(app, selected_entries):
 
     elapsed_time = time.time() - app.download_start_time
     elapsed_time_str = time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
-    app.update_status(f"批量下载完成! 成功: {success_count}, 失败: {fail_count}")
-    app.root.after(0, lambda: messagebox.showinfo("下载完成", f"成功: {success_count} 个, 失败: {fail_count} 个"))
-    app.root.after(0, app.open_download_folder)
+    cancelled = app.cancel_event.is_set()
+    app.update_status(
+        "已取消" if cancelled
+        else f"批量下载完成! 成功: {success_count}, 失败: {fail_count}"
+    )
+    app.root.after(0, lambda: messagebox.showinfo(
+        "已取消" if cancelled else "下载完成",
+        "下载已取消" if cancelled else f"成功: {success_count} 个, 失败: {fail_count} 个",
+    ))
+    if not cancelled:
+        app.root.after(0, app.open_download_folder)
 
-    app.is_downloading = False
-    app.root.after(0, app.enable_buttons)
     app.download_start_time = None
     app.current_download_index = None
+    app.root.after(0, app.enable_buttons)
     app.root.after(0, lambda: app.button_cancel.config(state='disabled'))

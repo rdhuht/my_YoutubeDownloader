@@ -23,7 +23,8 @@ class YouTubeDownloader:
             self.root.iconbitmap('imgs/logo.ico')
         except:
             pass
-        self.is_downloading = False
+        self.cancel_event = threading.Event()
+        self._active_ydl = None
         self.download_start_time = None
         self.current_url = None
         self.is_playlist = False
@@ -166,8 +167,14 @@ class YouTubeDownloader:
         self.status_bar.pack(fill='x', padx=10, pady=(0, 5))
 
     def update_status(self, text):
-        self._status_text = text
-        self.status_bar['text'] = text
+        def _do():
+            self._status_text = text
+            self.status_bar['text'] = text
+        try:
+            self.root.after(0, _do)
+        except RuntimeError:
+            # Root destroyed (e.g. during shutdown) — silently drop the update.
+            pass
 
     def on_entry_focus(self, event):
         clipboard_url = get_url_from_clipboard(self.root)
@@ -283,37 +290,52 @@ GitHub仓库：https://github.com/rdhuht/my_YoutubeDownloader"""
         self.update_status(f"下载路径: {self.download_path}")
 
     def update_video_progress_text(self, entry_index, text, tag='downloading'):
-        for iid, idx in self.tree_iid_map.items():
-            if idx == entry_index:
-                values = list(self.playlist_tree.item(iid, 'values'))
-                values[5] = text
-                self.playlist_tree.item(iid, values=values, tags=(tag,))
-                break
+        def _do():
+            for iid, idx in self.tree_iid_map.items():
+                if idx == entry_index:
+                    values = list(self.playlist_tree.item(iid, 'values'))
+                    values[5] = text
+                    self.playlist_tree.item(iid, values=values, tags=(tag,))
+                    break
+        try:
+            self.root.after(0, _do)
+        except RuntimeError:
+            pass
 
     def update_video_convert_status(self, entry_index, status):
-        for iid, idx in self.tree_iid_map.items():
-            if idx == entry_index:
-                values = list(self.playlist_tree.item(iid, 'values'))
-                values[6] = status
-                self.playlist_tree.item(iid, values=values)
-                break
+        def _do():
+            for iid, idx in self.tree_iid_map.items():
+                if idx == entry_index:
+                    values = list(self.playlist_tree.item(iid, 'values'))
+                    values[6] = status
+                    self.playlist_tree.item(iid, values=values)
+                    break
+        try:
+            self.root.after(0, _do)
+        except RuntimeError:
+            pass
 
     def set_video_result(self, entry_index, success):
-        for iid, idx in self.tree_iid_map.items():
-            if idx == entry_index:
-                values = list(self.playlist_tree.item(iid, 'values'))
-                if success:
-                    values[5] = "100%"
-                    self.playlist_tree.item(iid, values=values, tags=('success',))
-                else:
-                    values[5] = "失败"
-                    self.playlist_tree.item(iid, values=values, tags=('failed',))
-                break
+        def _do():
+            for iid, idx in self.tree_iid_map.items():
+                if idx == entry_index:
+                    values = list(self.playlist_tree.item(iid, 'values'))
+                    if success:
+                        values[5] = "100%"
+                        self.playlist_tree.item(iid, values=values, tags=('success',))
+                    else:
+                        values[5] = "失败"
+                        self.playlist_tree.item(iid, values=values, tags=('failed',))
+                    break
+        try:
+            self.root.after(0, _do)
+        except RuntimeError:
+            pass
 
     def start_parse_video_thread(self):
         self.disable_buttons()
         self.update_status("正在解析视频信息...")
-        threading.Thread(target=lambda: load_video_msg(self)).start()
+        threading.Thread(target=lambda: load_video_msg(self), daemon=True).start()
 
     def start_download_thread(self):
         selected = self.get_selected_videos()
@@ -324,10 +346,10 @@ GitHub仓库：https://github.com/rdhuht/my_YoutubeDownloader"""
         self.disable_buttons()
         if len(selected) == 1:
             self.update_status("开始下载")
-            threading.Thread(target=lambda: download_single(self, selected[0])).start()
+            threading.Thread(target=lambda: download_single(self, selected[0]), daemon=True).start()
         else:
             self.update_status(f"开始下载 {len(selected)} 个视频")
-            threading.Thread(target=lambda: download_multi(self, selected)).start()
+            threading.Thread(target=lambda: download_multi(self, selected), daemon=True).start()
 
     def disable_buttons(self):
         self.button_download.config(state='disabled')
@@ -351,8 +373,16 @@ GitHub仓库：https://github.com/rdhuht/my_YoutubeDownloader"""
                 subprocess.Popen(['open', self.download_path])
 
     def cancel_download(self):
-        self.is_downloading = False
-        messagebox.showinfo("取消下载", "下载已取消。")
+        # Signal the worker thread, then close the live YoutubeDL instance so
+        # yt-dlp aborts the in-flight HTTP read promptly. The worker surfaces
+        # the cancellation in its own messagebox, so we don't pop one here.
+        self.cancel_event.set()
+        ydl = self._active_ydl
+        if ydl is not None:
+            try:
+                ydl.close()
+            except Exception:
+                pass
         self.button_cancel.config(state='disabled')
         self.update_status("下载已取消")
 

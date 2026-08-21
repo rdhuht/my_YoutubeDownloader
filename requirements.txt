@@ -10,4 +10,5 @@ setuptools
 soupsieve
 ttkbootstrap
 # pytube
-yt_dlp>=2026.07.14
+yt_dlp>=2026.8.19.233000
+bgutil-ytdlp-pot-provider>=1.3.1

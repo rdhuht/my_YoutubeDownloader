@@ -16,20 +16,30 @@ This YouTube Downloader is a Python-based GUI application that allows users to d
 - Automatic download folder opening after download completes
 
 ### Requirements
-- Python 3.x
+- Python 3.x (only for running from source)
 - ffmpeg (for merging audio and video streams)
+- **Node.js** (LTS recommended) — required by current YouTube's SABR streaming experiment to solve the `n` challenge
+- **bgutil-ytdlp-pot-provider** + its HTTP server — required to bypass the 2026-08-17 YouTube change that 403's all anonymous HTTPS downloads
 - Required Python packages (see requirements.txt)
 
 ### Installation
 1. Install Python on your system
-2. Install ffmpeg:
+2. Install Node.js: download from https://nodejs.org/ or run `winget install OpenJS.NodeJS`
+3. Install ffmpeg:
    - Windows: Download from https://ffmpeg.org/ and add to PATH
    - macOS: `brew install ffmpeg`
    - Linux: `sudo apt install ffmpeg` or your distro's package manager
-3. Install Python dependencies:
+4. Install Python dependencies:
 ```bash
 pip install -r requirements.txt
 ```
+5. Install and run the bgutil POT HTTP server (port 4416 by default). Easiest with Docker:
+```bash
+docker run --name bgutil-provider -d -p 4416:4416 --init brainicism/bgutil-ytdlp-pot-provider
+```
+Or from source: clone https://github.com/Brainicism/bgutil-ytdlp-pot-provider, then `cd server && npm install && npx tsx src/main.ts`. Leave the terminal open while downloading.
+
+> Pre-built `youtubeVideoDownloader.exe` users only need steps 2, 3, 5 — Python dependencies and the bgutil plugin are bundled.
 
 ### Usage
 1. Start the application
@@ -39,6 +49,13 @@ pip install -r requirements.txt
 5. Choose the download path by clicking "下载路径" (Download Path)
 6. Click "开始下载" (Start Download) to begin downloading
 7. Click "取消下载" (Cancel Download) to stop an ongoing download
+
+### Notes on YouTube 1080p+ downloads
+YouTube has been rolling out a SABR-only streaming experiment to anonymous users since 2026. As a result, anonymous downloads are typically capped at **360p**. To download 1080p or higher:
+
+- Log in to YouTube in your browser, then export your cookies using a "Get cookies.txt LOCALLY" extension and load them via **设置 → Cookies 文件**.
+
+The app will pop up a one-time warning at startup if Node.js is not detected on your `PATH`.
 
 ### Menu
 - **设置 (Settings)** > **代理设置 (Proxy Settings)**: Configure proxy server
